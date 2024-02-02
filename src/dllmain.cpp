@@ -205,69 +205,65 @@ void CustomResolution()
 
 void AspectFOVFix()
 {
-    // Don't do any of this if the aspect ratio is wider than native
-    if (fNativeAspect > fAspectRatio)
+    if (bAspectFix && (fNativeAspect > fAspectRatio))
     {
-        if (bAspectFix)
+        // Aspect Ratio
+        uint8_t* AspectRatioScanResult = Memory::PatternScan(baseModule, "49 ?? ?? ?? ?? C5 ?? ?? ?? ?? ?? ?? 00 C5 ?? ?? ?? C5 ?? ?? ?? C5 ?? ?? ?? C4 ?? ?? ?? ?? ??");
+        if (AspectRatioScanResult)
         {
-            // Aspect Ratio
-            uint8_t* AspectRatioScanResult = Memory::PatternScan(baseModule, "49 ?? ?? ?? ?? C5 ?? ?? ?? ?? ?? ?? 00 C5 ?? ?? ?? C5 ?? ?? ?? C5 ?? ?? ?? C4 ?? ?? ?? ?? ??");
-            if (AspectRatioScanResult)
-            {
-                spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)AspectRatioScanResult - (uintptr_t)baseModule);
+            spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)AspectRatioScanResult - (uintptr_t)baseModule);
 
-                static SafetyHookMid AspectRatioMidHook{};
-                AspectRatioMidHook = safetyhook::create_mid(AspectRatioScanResult + 0x5,
-                    [](SafetyHookContext& ctx)
-                    {
-                        *reinterpret_cast<float*>(ctx.rax + 0x9D0) = fAspectRatio;
-                    });
-            }
-            else if (!AspectRatioScanResult)
-            {
-                spdlog::error("Aspect Ratio: Pattern scan failed.");
-            }
-
+            static SafetyHookMid AspectRatioMidHook{};
+            AspectRatioMidHook = safetyhook::create_mid(AspectRatioScanResult + 0x5,
+                [](SafetyHookContext& ctx)
+                {
+                    *reinterpret_cast<float*>(ctx.rax + 0x9D0) = fAspectRatio;
+                });
         }
-       
-        if (bFOVFix)
+        else if (!AspectRatioScanResult)
         {
-            // Gameplay FOV
-            uint8_t* GameplayFOVScanResult = Memory::PatternScan(baseModule, "75 ?? C5 ?? ?? ?? ?? ?? ?? 00 48 ?? ?? ?? C5 ?? ?? ?? ?? ?? ?? 00 C6 ?? ?? ?? ?? 00 01");
-            if (GameplayFOVScanResult)
-            {
-                spdlog::info("Gameplay FOV: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)GameplayFOVScanResult - (uintptr_t)baseModule);
+            spdlog::error("Aspect Ratio: Pattern scan failed.");
+        }
 
-                static SafetyHookMid GameplayFOVMidHook{};
-                GameplayFOVMidHook = safetyhook::create_mid(GameplayFOVScanResult + 0xE,
-                    [](SafetyHookContext& ctx)
-                    {
-                        ctx.xmm0.f32[0] /= fAspectMultiplier;
-                    });
-            }
-            else if (!GameplayFOVScanResult)
-            {
-                spdlog::error("Gameplay FOV: Pattern scan failed.");
-            }
+    }
 
-            // Cutscene FOV
-            uint8_t* CutsceneFOVScanResult = Memory::PatternScan(baseModule, "48 ?? ?? ?? C5 ?? ?? ?? ?? ?? ?? 00 C5 ?? ?? ?? ?? ?? ?? 00 C5 ?? ?? ?? ?? ?? ?? ?? C5 ?? ?? ?? ?? ?? ?? ?? 00 48 ?? ??");
-            if (CutsceneFOVScanResult)
-            {
-                spdlog::info("Cutscene FOV: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)CutsceneFOVScanResult - (uintptr_t)baseModule);
+    if (bFOVFix && (fNativeAspect > fAspectRatio))
+    {
+        // Gameplay FOV
+        uint8_t* GameplayFOVScanResult = Memory::PatternScan(baseModule, "75 ?? C5 ?? ?? ?? ?? ?? ?? 00 48 ?? ?? ?? C5 ?? ?? ?? ?? ?? ?? 00 C6 ?? ?? ?? ?? 00 01");
+        if (GameplayFOVScanResult)
+        {
+            spdlog::info("Gameplay FOV: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)GameplayFOVScanResult - (uintptr_t)baseModule);
 
-                static SafetyHookMid CutsceneFOVMidHook{};
-                CutsceneFOVMidHook = safetyhook::create_mid(CutsceneFOVScanResult + 0xC,
-                    [](SafetyHookContext& ctx)
-                    {
-                        ctx.xmm2.f32[0] /= fAspectMultiplier;
-                    });
-            }
-            else if (!CutsceneFOVScanResult)
-            {
-                spdlog::error("Cutscene FOV: Pattern scan failed.");
-            }
-        } 
+            static SafetyHookMid GameplayFOVMidHook{};
+            GameplayFOVMidHook = safetyhook::create_mid(GameplayFOVScanResult + 0xE,
+                [](SafetyHookContext& ctx)
+                {
+                    ctx.xmm0.f32[0] /= fAspectMultiplier;
+                });
+        }
+        else if (!GameplayFOVScanResult)
+        {
+            spdlog::error("Gameplay FOV: Pattern scan failed.");
+        }
+
+        // Cutscene FOV
+        uint8_t* CutsceneFOVScanResult = Memory::PatternScan(baseModule, "48 ?? ?? ?? C5 ?? ?? ?? ?? ?? ?? 00 C5 ?? ?? ?? ?? ?? ?? 00 C5 ?? ?? ?? ?? ?? ?? ?? C5 ?? ?? ?? ?? ?? ?? ?? 00 48 ?? ??");
+        if (CutsceneFOVScanResult)
+        {
+            spdlog::info("Cutscene FOV: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)CutsceneFOVScanResult - (uintptr_t)baseModule);
+
+            static SafetyHookMid CutsceneFOVMidHook{};
+            CutsceneFOVMidHook = safetyhook::create_mid(CutsceneFOVScanResult + 0xC,
+                [](SafetyHookContext& ctx)
+                {
+                    ctx.xmm2.f32[0] /= fAspectMultiplier;
+                });
+        }
+        else if (!CutsceneFOVScanResult)
+        {
+            spdlog::error("Cutscene FOV: Pattern scan failed.");
+        }
     }
 }
 
@@ -275,6 +271,7 @@ void HUDFix()
 {
     if (bHUDFix)
     {
+        // Don't do this if the aspect ratio is wider than native
         if (fNativeAspect < fAspectRatio)
         {
             // Force 16:9 UI
@@ -298,7 +295,6 @@ void HUDFix()
                 spdlog::error("UI: Pattern scan failed.");
             }
         }
-
 
         // Fix markers being off
         uint8_t* UIMarkersScanResult = Memory::PatternScan(baseModule, "C5 ?? ?? ?? C5 ?? ?? ?? C5 ?? ?? ?? C4 ?? ?? ?? ?? ?? 41 ?? ?? ?? ?? ?? 00 01");
