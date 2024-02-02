@@ -22,9 +22,9 @@ This list will contain bugs which may or may not be fixed.
   
 ## Screenshots
 
-|  |
+| ![ezgif-1-94aa803391](https://github.com/Lyall/GBFRelinkFix/assets/695941/43e186f0-0e4d-4ace-a0c9-300f3171e414)|
 |:--:|
-| Screenshot |
+| Gameplay with the fix. |
 
 ## Credits
 Many thanks to VagrantZero on the WSGF Discord for providing a copy of the game!
