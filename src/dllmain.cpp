@@ -297,26 +297,34 @@ void HUDFix()
             {
                 spdlog::error("UI: Pattern scan failed.");
             }
+        }
 
-            // Fix markers being off
-            uint8_t* UIMarkersScanResult = Memory::PatternScan(baseModule, "C5 ?? ?? ?? C5 ?? ?? ?? C5 ?? ?? ?? C4 ?? ?? ?? ?? ?? 41 ?? ?? ?? ?? ?? 00 01");
-            if (UIMarkersScanResult)
-            {
-                spdlog::info("UI Markers: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)UIMarkersScanResult - (uintptr_t)baseModule);
 
-                static SafetyHookMid UIMarkersMidHook{};
-                UIMarkersMidHook = safetyhook::create_mid(UIMarkersScanResult + 0x1F,
-                    [](SafetyHookContext& ctx)
+        // Fix markers being off
+        uint8_t* UIMarkersScanResult = Memory::PatternScan(baseModule, "C5 ?? ?? ?? C5 ?? ?? ?? C5 ?? ?? ?? C4 ?? ?? ?? ?? ?? 41 ?? ?? ?? ?? ?? 00 01");
+        if (UIMarkersScanResult)
+        {
+            spdlog::info("UI Markers: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)UIMarkersScanResult - (uintptr_t)baseModule);
+
+            static SafetyHookMid UIMarkersMidHook{};
+            UIMarkersMidHook = safetyhook::create_mid(UIMarkersScanResult + 0x1F,
+                [](SafetyHookContext& ctx)
+                {
+                    if (fNativeAspect < fAspectRatio)
                     {
                         *reinterpret_cast<float*>(ctx.rax + 0x1F4) = (float)2160 * fAspectRatio;
-                    });
-            }
-            else if (!UIMarkersScanResult)
-            {
-                spdlog::error("UI Markers: Pattern scan failed.");
-            }
+                    }
+                    else if (fNativeAspect > fAspectRatio)
+                    {
+                        *reinterpret_cast<float*>(ctx.rax + 0x1F8) = (float)3840 / fAspectRatio;
+                    }
+                });
         }
+        else if (!UIMarkersScanResult)
+        {
+            spdlog::error("UI Markers: Pattern scan failed.");
         }
+    }
 }
 
 void FPSCap()
