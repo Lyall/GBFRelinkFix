@@ -27,6 +27,8 @@ This list will contain bugs which may or may not be fixed.
 | Screenshot |
 
 ## Credits
+Many thanks to VagrantZero on the WSGF Discord for providing a copy of the game!
+
 [Ultimate ASI Loader](https://github.com/ThirteenAG/Ultimate-ASI-Loader) for ASI loading. <br />
 [inipp](https://github.com/mcmtroffaes/inipp) for ini reading. <br />
 [spdlog](https://github.com/gabime/spdlog) for logging. <br />
