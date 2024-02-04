@@ -323,25 +323,24 @@ void HUDFix()
         }
 
         // Fix markers being off
-        uint8_t* UIMarkersScanResult = Memory::PatternScan(baseModule, "C5 ?? ?? ?? C5 ?? ?? ?? C5 ?? ?? ?? C4 ?? ?? ?? ?? ?? 41 ?? ?? ?? ?? ?? 00 01");
+        uint8_t* UIMarkersScanResult = Memory::PatternScan(baseModule, "48 ?? ?? 20 48 ?? ?? 49 ?? ?? C5 ?? ?? ?? ?? ?? ?? 00 C5 ?? ?? ?? ?? ?? ?? 00") + 0xA;
         if (UIMarkersScanResult)
         {
             spdlog::info("UI Markers: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)UIMarkersScanResult - (uintptr_t)baseModule);
-            
+
             static SafetyHookMid UIMarkersMidHook{};
-            UIMarkersMidHook = safetyhook::create_mid(UIMarkersScanResult + 0x1F,
+            UIMarkersMidHook = safetyhook::create_mid(UIMarkersScanResult,
                 [](SafetyHookContext& ctx)
                 {
                     if (fAspectRatio < fNativeAspect)
                     {
-                        *reinterpret_cast<float*>(ctx.rax + 0x1F8) = (float)2160 + fHUDHeightOffset;
+                        *reinterpret_cast<float*>(ctx.rcx + 0x1F8) = (float)2160 + fHUDHeightOffset;
                     }
                     else if (fAspectRatio > fNativeAspect)
                     {
-                        *reinterpret_cast<float*>(ctx.rax + 0x1F4) = (float)2160 * fAspectRatio;
+                        *reinterpret_cast<float*>(ctx.rcx + 0x1F4) = (float)2160 * fAspectRatio;
                     }
-                });
-            
+                });            
         }
         else if (!UIMarkersScanResult)
         {
