@@ -16,6 +16,9 @@ This is a fix that adds custom resolutions, ultrawide support and more to Granbl
 ## Configuration
 - See **GBFRelinkFix.ini** to adjust settings for the fix.
 
+### Steam Deck/Linux Additional Instructions
+- Open up the game properties in Steam and add `WINEDLLOVERRIDES="dinput8=n,b" %command%` to the launch options.
+
 ## Known Issues
 Please report any issues you see.
 This list will contain bugs which may or may not be fixed.
