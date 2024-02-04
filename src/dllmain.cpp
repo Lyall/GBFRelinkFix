@@ -200,6 +200,24 @@ void CustomResolution()
                 spdlog::error("Graphics Corruption: Pattern scan failed.");
             }
         }
+
+        // Screen Effects
+        uint8_t* ScreenEffectsScanResult = Memory::PatternScan(baseModule, "C5 ?? ?? ?? 48 ?? ?? ?? ?? ?? 00 C5 ?? ?? ?? ?? ?? ?? 00 C3") + 0xB;
+        if (ScreenEffectsScanResult)
+        {
+            spdlog::info("Screen Effects: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)ScreenEffectsScanResult - (uintptr_t)baseModule);
+
+            static SafetyHookMid ScreenEffectsMidHook{};
+            ScreenEffectsMidHook = safetyhook::create_mid(ScreenEffectsScanResult,
+                [](SafetyHookContext& ctx)
+                {
+                    ctx.xmm0.f32[0] = fAspectMultiplier;
+                });
+        }
+        else if (!ScreenEffectsScanResult)
+        {
+            spdlog::error("Screen Effects: Pattern scan failed.");
+        }
     }
 }
 
