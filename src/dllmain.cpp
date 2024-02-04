@@ -27,6 +27,7 @@ bool bHUDFix;
 bool bAspectFix;
 bool bFOVFix;
 bool bFPSCap;
+bool bSpanHUD;
 
 // Aspect ratio + HUD stuff
 float fNativeAspect = (float)16 / 9;
@@ -95,19 +96,21 @@ void ReadConfig()
     inipp::get_value(ini.sections["Custom Resolution"], "Enabled", bCustomResolution);
     inipp::get_value(ini.sections["Custom Resolution"], "Width", iCustomResX);
     inipp::get_value(ini.sections["Custom Resolution"], "Height", iCustomResY);
-    inipp::get_value(ini.sections["Raise Framerate Cap"], "Enabled", bFPSCap);
     inipp::get_value(ini.sections["Fix HUD"], "Enabled", bHUDFix);
     inipp::get_value(ini.sections["Fix Aspect Ratio"], "Enabled", bAspectFix);
     inipp::get_value(ini.sections["Fix FOV"], "Enabled", bFOVFix);
+    inipp::get_value(ini.sections["Raise Framerate Cap"], "Enabled", bFPSCap);
+    inipp::get_value(ini.sections["Span HUD"], "Enabled", bSpanHUD);
 
     // Log config parse
     spdlog::info("Config Parse: bCustomResolution: {}", bCustomResolution);
     spdlog::info("Config Parse: iCustomResX: {}", iCustomResX);
     spdlog::info("Config Parse: iCustomResY: {}", iCustomResY);
-    spdlog::info("Config Parse: bFPSCap: {}", bFPSCap);
     spdlog::info("Config Parse: bHUDFix: {}", bHUDFix);
     spdlog::info("Config Parse: bAspectFix: {}", bAspectFix);
     spdlog::info("Config Parse: bFOVFix: {}", bFOVFix);
+    spdlog::info("Config Parse: bFPSCap: {}", bFPSCap);
+    spdlog::info("Config Parse: bSpanHUD: {}", bSpanHUD);
     spdlog::info("----------");
 
     // Calculate aspect ratio / use desktop res instead
@@ -345,6 +348,40 @@ void HUDFix()
         else if (!UIMarkersScanResult)
         {
             spdlog::error("UI Markers: Pattern scan failed.");
+        }
+    }
+
+    if (bSpanHUD)
+    {
+        // Spanned HUD
+        uint8_t* HUDConstraintsScanResult = Memory::PatternScan(baseModule, "48 ?? ?? ?? ?? ?? 00 48 ?? ?? 74 ?? C5 ?? ?? ?? ?? ?? ?? 00 C5 ?? ?? ?? ?? ?? ?? 00 C5 ?? ?? ?? ?? ?? ?? 00 EB ??") + 0x1C;
+        if (HUDConstraintsScanResult)
+        {
+            spdlog::info("HUD Constratints: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)HUDConstraintsScanResult - (uintptr_t)baseModule);
+
+            static SafetyHookMid HUDConstraintsMidHook{};
+            HUDConstraintsMidHook = safetyhook::create_mid(HUDConstraintsScanResult,
+                [](SafetyHookContext& ctx)
+                {
+                    if (fAspectRatio < fNativeAspect)
+                    {
+                        if (ctx.xmm0.f32[0] == (float)2160)
+                        {
+                            ctx.xmm0.f32[0] = (float)3840 / fAspectRatio;
+                        }
+                    }
+                    else if (fAspectRatio > fNativeAspect)
+                    {
+                        if (ctx.xmm2.f32[0] == (float)3840)
+                        {
+                            ctx.xmm2.f32[0] = (float)2160 * fAspectRatio;
+                        }
+                    }
+                });
+        }
+        else if (!HUDConstraintsScanResult)
+        {
+            spdlog::error("HUD Constratints: Pattern scan failed.");
         }
     }
 }
