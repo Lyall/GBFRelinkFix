@@ -24,6 +24,7 @@ Please report any issues you see.
 This list will contain bugs which may or may not be fixed.
 
 - Screen fades to black are 16:9 and do not mask background loading.
+- Spanned HUD option does not span everything and can look rather buggy.
   
 ## Screenshots
 
