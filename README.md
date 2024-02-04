@@ -9,6 +9,8 @@ This is a fix that adds custom resolutions, ultrawide support and more to Granbl
 - Correct FOV and aspect ratio at any resolution.
 - Scales HUD to 16:9.
 - Experimental option to span the HUD.
+- Experiental option to raise FPS cap to 240.
+
 ## Installation
 - Grab the latest release of GBFRelinkFix from [here.](https://github.com/Lyall/GBFRelinkFix/releases)
 - Extract the contents of the release zip in to the the game folder.<br />(e.g. "**steamapps\common\Granblue Fantasy Relink**" for Steam).
