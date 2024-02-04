@@ -16,6 +16,7 @@ This is a fix that adds custom resolutions, ultrawide support and more to Granbl
 - Extract the contents of the release zip in to the the game folder.<br />(e.g. "**steamapps\common\Granblue Fantasy Relink**" for Steam).
 
 ### Steam Deck/Linux Additional Instructions
+🚩**You do not need to do this if you are using Windows!**
 - Open up the game properties in Steam and add `WINEDLLOVERRIDES="dinput8=n,b" %command%` to the launch options.
 
 ## Configuration
@@ -35,7 +36,8 @@ This list will contain bugs which may or may not be fixed.
 | Gameplay with the fix. |
 
 ## Credits
-Many thanks to VagrantZero on the WSGF Discord for providing a copy of the game! <br/>
+Many thanks to VagrantZero on the WSGF Discord for providing a copy of the game! 
+<br/>
 Also thanks to KingKrouch and nikos on the WSGF Discord for doing valuable testing.
 
 [Ultimate ASI Loader](https://github.com/ThirteenAG/Ultimate-ASI-Loader) for ASI loading. <br />
