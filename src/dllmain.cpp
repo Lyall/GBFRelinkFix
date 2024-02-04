@@ -95,7 +95,7 @@ void ReadConfig()
     inipp::get_value(ini.sections["Custom Resolution"], "Enabled", bCustomResolution);
     inipp::get_value(ini.sections["Custom Resolution"], "Width", iCustomResX);
     inipp::get_value(ini.sections["Custom Resolution"], "Height", iCustomResY);
-    inipp::get_value(ini.sections["Uncap Framerate"], "Enabled", bFPSCap);
+    inipp::get_value(ini.sections["Raise Framerate Cap"], "Enabled", bFPSCap);
     inipp::get_value(ini.sections["Fix HUD"], "Enabled", bHUDFix);
     inipp::get_value(ini.sections["Fix Aspect Ratio"], "Enabled", bAspectFix);
     inipp::get_value(ini.sections["Fix FOV"], "Enabled", bFOVFix);
@@ -211,8 +211,16 @@ void CustomResolution()
             ScreenEffectsMidHook = safetyhook::create_mid(ScreenEffectsScanResult,
                 [](SafetyHookContext& ctx)
                 {
-                    ctx.xmm0.f32[0] = fAspectMultiplier;
+                    if (fAspectRatio > fNativeAspect)
+                    {
+                        ctx.xmm0.f32[0] = fAspectMultiplier;
+                    }
+                    else if (fAspectRatio < fNativeAspect)
+                    {
+
+                    }
                 });
+         
         }
         else if (!ScreenEffectsScanResult)
         {
@@ -319,20 +327,21 @@ void HUDFix()
         if (UIMarkersScanResult)
         {
             spdlog::info("UI Markers: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)UIMarkersScanResult - (uintptr_t)baseModule);
-
+            
             static SafetyHookMid UIMarkersMidHook{};
             UIMarkersMidHook = safetyhook::create_mid(UIMarkersScanResult + 0x1F,
                 [](SafetyHookContext& ctx)
                 {
-                    if (fNativeAspect < fAspectRatio)
+                    if (fAspectRatio < fNativeAspect)
+                    {
+                        *reinterpret_cast<float*>(ctx.rax + 0x1F8) = (float)2160 + fHUDHeightOffset;
+                    }
+                    else if (fAspectRatio > fNativeAspect)
                     {
                         *reinterpret_cast<float*>(ctx.rax + 0x1F4) = (float)2160 * fAspectRatio;
                     }
-                    else if (fNativeAspect > fAspectRatio)
-                    {
-                        *reinterpret_cast<float*>(ctx.rax + 0x1F8) = (float)3840 / fAspectRatio;
-                    }
                 });
+            
         }
         else if (!UIMarkersScanResult)
         {
