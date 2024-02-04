@@ -12,7 +12,7 @@ HMODULE baseModule = GetModuleHandle(NULL);
 // Logger and config setup
 inipp::Ini<char> ini;
 string sFixName = "GBFRelinkFix";
-string sFixVer = "1.0.0";
+string sFixVer = "1.0.1";
 string sLogFile = "GBFRelinkFix.log";
 string sConfigFile = "GBFRelinkFix.ini";
 string sExeName;
@@ -349,6 +349,29 @@ void HUDFix()
         {
             spdlog::error("UI Markers: Pattern scan failed.");
         }
+
+        // Span backgrounds
+        uint8_t* UIBackgroundsScanResult = Memory::PatternScan(baseModule, "41 ?? ?? ?? ?? 00 E8 ?? ?? ?? ?? 80 ?? ?? ?? 00 0F ?? ?? ?? ?? ?? 48 ?? ?? ?? ?? 48 ?? ?? E8 ?? ?? ?? ?? 48 ?? ?? ?? C5 ?? ?? ?? ?? ?? ?? 00") + 0x27;
+        if (UIBackgroundsScanResult)
+        {
+            spdlog::info("UI Backgrounds: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)UIBackgroundsScanResult - (uintptr_t)baseModule);
+
+            static SafetyHookMid UIBackgroundsMidHook{};
+            UIBackgroundsMidHook = safetyhook::create_mid(UIBackgroundsScanResult,
+                [](SafetyHookContext& ctx)
+                {
+                    // If it is 3840x2160 then span it
+                    if ((*reinterpret_cast<float*>(ctx.rax + 0x1F4) == (float)3840) && (*reinterpret_cast<float*>(ctx.rax + 0x1F8) == (float)2160))
+                    {
+                        *reinterpret_cast<float*>(ctx.rax + 0x1F4) = (float)2160 * fAspectRatio;
+                    }
+                });
+        }
+        else if (!UIBackgroundsScanResult)
+        {
+            spdlog::error("UI Backgrounds: Pattern scan failed.");
+        }
+
     }
 
     if (bSpanHUD)
