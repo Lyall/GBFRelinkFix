@@ -357,7 +357,7 @@ void HUDFix()
         uint8_t* HUDConstraintsScanResult = Memory::PatternScan(baseModule, "48 ?? ?? ?? ?? ?? 00 48 ?? ?? 74 ?? C5 ?? ?? ?? ?? ?? ?? 00 C5 ?? ?? ?? ?? ?? ?? 00 C5 ?? ?? ?? ?? ?? ?? 00 EB ??") + 0x1C;
         if (HUDConstraintsScanResult)
         {
-            spdlog::info("HUD Constratints: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)HUDConstraintsScanResult - (uintptr_t)baseModule);
+            spdlog::info("HUD Constraints: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)HUDConstraintsScanResult - (uintptr_t)baseModule);
 
             static SafetyHookMid HUDConstraintsMidHook{};
             HUDConstraintsMidHook = safetyhook::create_mid(HUDConstraintsScanResult,
@@ -381,7 +381,7 @@ void HUDFix()
         }
         else if (!HUDConstraintsScanResult)
         {
-            spdlog::error("HUD Constratints: Pattern scan failed.");
+            spdlog::error("HUD Constraints: Pattern scan failed.");
         }
     }
 }
