@@ -13,6 +13,9 @@ This is a fix that adds custom resolutions, ultrawide support and more to Granbl
 - Grab the latest release of GBFRelinkFix from [here.](https://github.com/Lyall/GBFRelinkFix/releases)
 - Extract the contents of the release zip in to the the game folder.<br />(e.g. "**steamapps\common\Granblue Fantasy Relink**" for Steam).
 
+### Steam Deck/Linux Additional Instructions
+- Open up the game properties in Steam and add `WINEDLLOVERRIDES="dinput8=n,b" %command%` to the launch options.
+
 ## Configuration
 - See **GBFRelinkFix.ini** to adjust settings for the fix.
 
