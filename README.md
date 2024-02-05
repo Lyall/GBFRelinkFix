@@ -30,6 +30,7 @@ This list will contain bugs which may or may not be fixed.
 
 - Spanned HUD option does not span everything and can look rather buggy.
 - Spanned backgrounds option may result in visual bugs.
+- Raising FPS cap can cause issues with physics. [#2](https://github.com/Lyall/GBFRelinkFix/issues/2)
   
 ## Screenshots
 
