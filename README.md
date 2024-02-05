@@ -10,7 +10,7 @@ This is a fix that adds custom resolutions, ultrawide support and more to Granbl
 - Gameplay FOV modification.
 - Scales HUD to 16:9.
 - Experimental option to span the HUD. (Check ini to enable)
-- Experimental option to span HUD backgrounds (i.e screen fades, menu backgrounds etc). (Check ini to enable)
+- Experimental option to span HUD backgrounds e.g. screen fades, menu backgrounds etc. (Check ini to enable)
 - Experiental option to raise FPS cap to 240. (Check ini to enable)
 
 ## Installation
