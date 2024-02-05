@@ -23,11 +23,13 @@ RECT rcDesktop;
 bool bCustomResolution;
 int iCustomResX;
 int iCustomResY;
+float fFOVMulti;
 bool bHUDFix;
 bool bAspectFix;
 bool bFOVFix;
 bool bFPSCap;
 bool bSpanHUD;
+bool bSpanBackgrounds;
 
 // Aspect ratio + HUD stuff
 float fNativeAspect = (float)16 / 9;
@@ -96,21 +98,30 @@ void ReadConfig()
     inipp::get_value(ini.sections["Custom Resolution"], "Enabled", bCustomResolution);
     inipp::get_value(ini.sections["Custom Resolution"], "Width", iCustomResX);
     inipp::get_value(ini.sections["Custom Resolution"], "Height", iCustomResY);
+    inipp::get_value(ini.sections["Gameplay FOV"], "Multiplier", fFOVMulti);
     inipp::get_value(ini.sections["Fix HUD"], "Enabled", bHUDFix);
     inipp::get_value(ini.sections["Fix Aspect Ratio"], "Enabled", bAspectFix);
     inipp::get_value(ini.sections["Fix FOV"], "Enabled", bFOVFix);
     inipp::get_value(ini.sections["Raise Framerate Cap"], "Enabled", bFPSCap);
     inipp::get_value(ini.sections["Span HUD"], "Enabled", bSpanHUD);
+    inipp::get_value(ini.sections["Span Backgrounds"], "Enabled", bSpanBackgrounds);
 
     // Log config parse
     spdlog::info("Config Parse: bCustomResolution: {}", bCustomResolution);
     spdlog::info("Config Parse: iCustomResX: {}", iCustomResX);
     spdlog::info("Config Parse: iCustomResY: {}", iCustomResY);
+    spdlog::info("Config Parse: fFOVMulti: {}", fFOVMulti);
+    if (fFOVMulti < (float)0.1 || fFOVMulti > (float)2.5)
+    {
+        fFOVMulti = std::clamp(fFOVMulti, (float)0.1, (float)2.5);
+        spdlog::info("Config Parse: fFOVMulti value invalid, clamped to {}", fFOVMulti);
+    }
     spdlog::info("Config Parse: bHUDFix: {}", bHUDFix);
     spdlog::info("Config Parse: bAspectFix: {}", bAspectFix);
     spdlog::info("Config Parse: bFOVFix: {}", bFOVFix);
     spdlog::info("Config Parse: bFPSCap: {}", bFPSCap);
     spdlog::info("Config Parse: bSpanHUD: {}", bSpanHUD);
+    spdlog::info("Config Parse: bSpanBackgrounds: {}", bSpanBackgrounds);
     spdlog::info("----------");
 
     // Calculate aspect ratio / use desktop res instead
@@ -256,26 +267,37 @@ void AspectFOVFix()
 
     }
 
-    if (bFOVFix && (fNativeAspect > fAspectRatio))
+    // Gameplay FOV
+    uint8_t* GameplayFOVScanResult = Memory::PatternScan(baseModule, "75 ?? C5 ?? ?? ?? ?? ?? ?? 00 48 ?? ?? ?? C5 ?? ?? ?? ?? ?? ?? 00 C6 ?? ?? ?? ?? 00 01");
+    if (GameplayFOVScanResult)
     {
-        // Gameplay FOV
-        uint8_t* GameplayFOVScanResult = Memory::PatternScan(baseModule, "75 ?? C5 ?? ?? ?? ?? ?? ?? 00 48 ?? ?? ?? C5 ?? ?? ?? ?? ?? ?? 00 C6 ?? ?? ?? ?? 00 01");
-        if (GameplayFOVScanResult)
-        {
-            spdlog::info("Gameplay FOV: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)GameplayFOVScanResult - (uintptr_t)baseModule);
+        spdlog::info("Gameplay FOV: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)GameplayFOVScanResult - (uintptr_t)baseModule);
 
-            static SafetyHookMid GameplayFOVMidHook{};
-            GameplayFOVMidHook = safetyhook::create_mid(GameplayFOVScanResult + 0xE,
-                [](SafetyHookContext& ctx)
+        static SafetyHookMid GameplayFOVMidHook{};
+        GameplayFOVMidHook = safetyhook::create_mid(GameplayFOVScanResult + 0xE,
+            [](SafetyHookContext& ctx)
+            {
+                // Fix gameplay FOV at <16:9
+                if (bFOVFix && (fNativeAspect > fAspectRatio))
                 {
                     ctx.xmm0.f32[0] /= fAspectMultiplier;
-                });
-        }
-        else if (!GameplayFOVScanResult)
-        {
-            spdlog::error("Gameplay FOV: Pattern scan failed.");
-        }
+                }
 
+                // Run FOV multiplier
+                if (fFOVMulti != (float)1)
+                {
+                    ctx.xmm0.f32[0] *= fFOVMulti;
+                }
+            });
+    }
+    else if (!GameplayFOVScanResult)
+    {
+        spdlog::error("Gameplay FOV: Pattern scan failed.");
+    }
+
+
+    if (bFOVFix && (fNativeAspect > fAspectRatio))
+    {
         // Cutscene FOV
         uint8_t* CutsceneFOVScanResult = Memory::PatternScan(baseModule, "48 ?? ?? ?? C5 ?? ?? ?? ?? ?? ?? 00 C5 ?? ?? ?? ?? ?? ?? 00 C5 ?? ?? ?? ?? ?? ?? ?? C5 ?? ?? ?? ?? ?? ?? ?? 00 48 ?? ??");
         if (CutsceneFOVScanResult)
@@ -349,7 +371,10 @@ void HUDFix()
         {
             spdlog::error("UI Markers: Pattern scan failed.");
         }
+    }
 
+    if (bSpanBackgrounds)
+    {
         // Span backgrounds
         uint8_t* UIBackgroundsScanResult = Memory::PatternScan(baseModule, "41 ?? ?? ?? ?? 00 E8 ?? ?? ?? ?? 80 ?? ?? ?? 00 0F ?? ?? ?? ?? ?? 48 ?? ?? ?? ?? 48 ?? ?? E8 ?? ?? ?? ?? 48 ?? ?? ?? C5 ?? ?? ?? ?? ?? ?? 00") + 0x27;
         if (UIBackgroundsScanResult)
@@ -371,7 +396,6 @@ void HUDFix()
         {
             spdlog::error("UI Backgrounds: Pattern scan failed.");
         }
-
     }
 
     if (bSpanHUD)
