@@ -86,8 +86,21 @@ namespace Memory
         return nullptr;
     }
 
-    uintptr_t GetAbsolute(uintptr_t address) noexcept
+    uintptr_t GetAbsolute64(uintptr_t address) noexcept
     {
         return (address + 4 + *reinterpret_cast<std::int32_t*>(address));
     }
+
+    std::uintptr_t* findFromOffsets(std::uintptr_t ptr, std::vector<std::ptrdiff_t> offsets)
+    {
+        std::uintptr_t* addr = &ptr; // creates a pointer to the first parameter
+        for (int i = 0; i < offsets.size(); i++) // Loops through each offset
+        {
+            addr = reinterpret_cast<std::uintptr_t*>(*addr + offsets[i]); // Reads the current pointer of current address + offset
+            if (!addr)
+                return nullptr; // Checking if it is null and stopping so it doesnt error
+        }
+
+        return addr; // Returns address
+    };
 }

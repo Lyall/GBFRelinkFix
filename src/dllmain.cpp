@@ -29,7 +29,6 @@ bool bAspectFix;
 bool bFOVFix;
 bool bFPSCap;
 bool bSpanHUD;
-bool bSpanBackgrounds;
 
 // Aspect ratio + HUD stuff
 float fNativeAspect = (float)16 / 9;
@@ -104,7 +103,6 @@ void ReadConfig()
     inipp::get_value(ini.sections["Fix FOV"], "Enabled", bFOVFix);
     inipp::get_value(ini.sections["Raise Framerate Cap"], "Enabled", bFPSCap);
     inipp::get_value(ini.sections["Span HUD"], "Enabled", bSpanHUD);
-    inipp::get_value(ini.sections["Span Backgrounds"], "Enabled", bSpanBackgrounds);
 
     // Log config parse
     spdlog::info("Config Parse: bCustomResolution: {}", bCustomResolution);
@@ -121,7 +119,6 @@ void ReadConfig()
     spdlog::info("Config Parse: bFOVFix: {}", bFOVFix);
     spdlog::info("Config Parse: bFPSCap: {}", bFPSCap);
     spdlog::info("Config Parse: bSpanHUD: {}", bSpanHUD);
-    spdlog::info("Config Parse: bSpanBackgrounds: {}", bSpanBackgrounds);
     spdlog::info("----------");
 
     // Calculate aspect ratio / use desktop res instead
@@ -371,12 +368,9 @@ void HUDFix()
         {
             spdlog::error("UI Markers: Pattern scan failed.");
         }
-    }
 
-    if (bSpanBackgrounds)
-    {
         // Span backgrounds
-        uint8_t* UIBackgroundsScanResult = Memory::PatternScan(baseModule, "41 ?? ?? ?? ?? 00 E8 ?? ?? ?? ?? 80 ?? ?? ?? 00 0F ?? ?? ?? ?? ?? 48 ?? ?? ?? ?? 48 ?? ?? E8 ?? ?? ?? ?? 48 ?? ?? ?? C5 ?? ?? ?? ?? ?? ?? 00") + 0x27;
+        uint8_t* UIBackgroundsScanResult = Memory::PatternScan(baseModule, "41 ?? ?? ?? ?? 00 E8 ?? ?? ?? ?? 80 ?? ?? ?? 00 0F ?? ?? ?? ?? ?? 48 ?? ?? ?? ?? 48 ?? ?? E8 ?? ?? ?? ?? 48 ?? ?? ?? C5 ?? ?? ?? ?? ?? ?? 00") + 0x2F;
         if (UIBackgroundsScanResult)
         {
             spdlog::info("UI Backgrounds: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)UIBackgroundsScanResult - (uintptr_t)baseModule);
@@ -385,10 +379,27 @@ void HUDFix()
             UIBackgroundsMidHook = safetyhook::create_mid(UIBackgroundsScanResult,
                 [](SafetyHookContext& ctx)
                 {
-                    // If it is 3840x2160 then span it
-                    if ((*reinterpret_cast<float*>(ctx.rax + 0x1F4) == (float)3840) && (*reinterpret_cast<float*>(ctx.rax + 0x1F8) == (float)2160))
+                    // If it is 3840px wide then it must span the entire screen
+                    if (*reinterpret_cast<float*>(ctx.rax + 0x1F4) == (float)3840)
                     {
-                        *reinterpret_cast<float*>(ctx.rax + 0x1F4) = (float)2160 * fAspectRatio;
+                        // Fade to black = 1932007245 | Pause screen bg = 1611295806 | Dialogue bg = 2454207042  | Title menu bg = 4291119775
+                        // Main menu bg = 2384707215  | Lyria's journal = 3818795736 | Load save bg = 3969399384 | Title fade white = 1646463024
+                        // Main menu transition bg = 2056445562 | Title menu fade black = 3970768321 | Title options bg 1 = 603087221 | Title options bg 2 = 61148732
+                        if (*reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)1932007245
+                            || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)1611295806
+                            || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)2454207042
+                            || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)4291119775
+                            || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)2384707215
+                            || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)3818795736
+                            || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)3969399384
+                            || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)1646463024
+                            || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)2056445562
+                            || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)3970768321
+                            || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)61148732
+                            || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)603087221)
+                        {
+                            ctx.xmm0.f32[0] = (float)2160 * fAspectRatio;
+                        }
                     }
                 });
         }
@@ -404,31 +415,41 @@ void HUDFix()
         uint8_t* HUDConstraintsScanResult = Memory::PatternScan(baseModule, "48 ?? ?? ?? ?? ?? 00 48 ?? ?? 74 ?? C5 ?? ?? ?? ?? ?? ?? 00 C5 ?? ?? ?? ?? ?? ?? 00 C5 ?? ?? ?? ?? ?? ?? 00 EB ??") + 0x1C;
         if (HUDConstraintsScanResult)
         {
-            spdlog::info("HUD Constraints: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)HUDConstraintsScanResult - (uintptr_t)baseModule);
+            spdlog::info("UI Constraints: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)HUDConstraintsScanResult - (uintptr_t)baseModule);
 
             static SafetyHookMid HUDConstraintsMidHook{};
             HUDConstraintsMidHook = safetyhook::create_mid(HUDConstraintsScanResult,
                 [](SafetyHookContext& ctx)
                 {
-                    if (fAspectRatio < fNativeAspect)
+                    if (ctx.rax + 0x221)
                     {
-                        if (ctx.xmm0.f32[0] == (float)2160)
+                        string objName = string((char*)ctx.rax+0x221, 16);
+                        
+                        // Gameplay HUD
+                        if (objName.find("T_MS14_0622") != string::npos)
                         {
-                            ctx.xmm0.f32[0] = (float)3840 / fAspectRatio;
+                            // Span to edges of screen
+                            *reinterpret_cast<float*>(ctx.rax + 0x1F4) = (float)2160 * fAspectRatio;
                         }
                     }
-                    else if (fAspectRatio > fNativeAspect)
+
+                    // Guard & Lock-On
+                    if (*reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)605904162)
                     {
-                        if (ctx.xmm2.f32[0] == (float)3840)
-                        {
-                            ctx.xmm2.f32[0] = (float)2160 * fAspectRatio;
-                        }
+                        // Offset
+                        *reinterpret_cast<float*>(ctx.rax + 0x1CC) = (float)-(((2160 * fAspectRatio) - 3840) / 2);
+                    }
+                    // Dodge
+                    if (*reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)3550204025)
+                    {
+                        // Offset
+                        *reinterpret_cast<float*>(ctx.rax + 0x1CC) = (float)(((2160 * fAspectRatio) - 3840) / 2);
                     }
                 });
         }
         else if (!HUDConstraintsScanResult)
         {
-            spdlog::error("HUD Constraints: Pattern scan failed.");
+            spdlog::error("UI Constraints: Pattern scan failed.");
         }
     }
 }
