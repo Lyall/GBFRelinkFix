@@ -443,6 +443,12 @@ void HUDFix()
                         }
                     }
 
+                    // Main Menu HUD
+                    if (*reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)141651223)
+                    {
+                        // Span
+                        *reinterpret_cast<float*>(ctx.rax + 0x1F4) = (float)2160 * fAspectRatio;
+                    }
                     // Guard & Lock-On
                     if (*reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)605904162)
                     {
