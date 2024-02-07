@@ -379,50 +379,55 @@ void HUDFix()
             spdlog::error("UI Markers: Pattern scan failed.");
         }
 
-        if (fAspectRatio > fNativeAspect)
+        // Span backgrounds
+        uint8_t* UIBackgroundsScanResult = Memory::PatternScan(baseModule, "41 ?? ?? ?? ?? 00 E8 ?? ?? ?? ?? 80 ?? ?? ?? 00 0F ?? ?? ?? ?? ?? 48 ?? ?? ?? ?? 48 ?? ?? E8 ?? ?? ?? ?? 48 ?? ?? ?? C5 ?? ?? ?? ?? ?? ?? 00") + 0x57;
+        if (UIBackgroundsScanResult)
         {
-            // Span backgrounds
-            uint8_t* UIBackgroundsScanResult = Memory::PatternScan(baseModule, "41 ?? ?? ?? ?? 00 E8 ?? ?? ?? ?? 80 ?? ?? ?? 00 0F ?? ?? ?? ?? ?? 48 ?? ?? ?? ?? 48 ?? ?? E8 ?? ?? ?? ?? 48 ?? ?? ?? C5 ?? ?? ?? ?? ?? ?? 00") + 0x2F;
-            if (UIBackgroundsScanResult)
-            {
-                spdlog::info("UI Backgrounds: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)UIBackgroundsScanResult - (uintptr_t)baseModule);
+            spdlog::info("UI Backgrounds: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)UIBackgroundsScanResult - (uintptr_t)baseModule);
 
-                static SafetyHookMid UIBackgroundsMidHook{};
-                UIBackgroundsMidHook = safetyhook::create_mid(UIBackgroundsScanResult,
-                    [](SafetyHookContext& ctx)
+            static SafetyHookMid UIBackgroundsMidHook{};
+            UIBackgroundsMidHook = safetyhook::create_mid(UIBackgroundsScanResult,
+                [](SafetyHookContext& ctx)
+                {
+                    // If it is 3840px wide then it must span the entire screen
+                    if (*reinterpret_cast<float*>(ctx.rax + 0x1F4) == (float)3840)
                     {
-                        // If it is 3840px wide then it must span the entire screen
-                        if (*reinterpret_cast<float*>(ctx.rax + 0x1F4) == (float)3840)
+                        // Fade to black = 1932007245 | Pause screen bg = 1611295806 | Dialogue bg = 2454207042  | Title menu bg = 4291119775
+                        // Main menu bg = 2384707215  | Lyria's journal = 3818795736 | Load save bg = 3969399384 | Title fade white = 1646463024
+                        // Main menu transition bg = 2056445562 | Title menu fade black = 3970768321 | Title options bg 1 = 603087221 | Title options bg 2 = 61148732
+                        if (*reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)1932007245
+                            || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)1611295806
+                            || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)2454207042
+                            || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)4291119775
+                            || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)2384707215
+                            || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)3818795736
+                            || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)3969399384
+                            || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)1646463024
+                            || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)2056445562
+                            || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)3970768321
+                            || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)61148732
+                            || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)603087221)
                         {
-                            // Fade to black = 1932007245 | Pause screen bg = 1611295806 | Dialogue bg = 2454207042  | Title menu bg = 4291119775
-                            // Main menu bg = 2384707215  | Lyria's journal = 3818795736 | Load save bg = 3969399384 | Title fade white = 1646463024
-                            // Main menu transition bg = 2056445562 | Title menu fade black = 3970768321 | Title options bg 1 = 603087221 | Title options bg 2 = 61148732
-                            if (*reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)1932007245
-                                || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)1611295806
-                                || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)2454207042
-                                || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)4291119775
-                                || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)2384707215
-                                || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)3818795736
-                                || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)3969399384
-                                || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)1646463024
-                                || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)2056445562
-                                || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)3970768321
-                                || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)61148732
-                                || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)603087221)
+                            if (fAspectRatio > fNativeAspect)
                             {
                                 ctx.xmm0.f32[0] = (float)2160 * fAspectRatio;
                             }
+                            else if (fAspectRatio < fNativeAspect)
+                            {
+                                ctx.xmm4.f32[0] = (float)3840 / fAspectRatio;
+                            }
                         }
-                    });
-            }
-            else if (!UIBackgroundsScanResult)
-            {
-                spdlog::error("UI Backgrounds: Pattern scan failed.");
-            }
+                    }
+                });
         }
+        else if (!UIBackgroundsScanResult)
+        {
+            spdlog::error("UI Backgrounds: Pattern scan failed.");
+        }
+        
     }
 
-    if (bSpanHUD && (fAspectRatio > fNativeAspect))
+    if (bSpanHUD)
     {
         // Spanned HUD
         uint8_t* HUDConstraintsScanResult = Memory::PatternScan(baseModule, "48 ?? ?? ?? ?? ?? 00 48 ?? ?? 74 ?? C5 ?? ?? ?? ?? ?? ?? 00 C5 ?? ?? ?? ?? ?? ?? 00 C5 ?? ?? ?? ?? ?? ?? 00 EB ??") + 0x1C;
@@ -434,35 +439,44 @@ void HUDFix()
             HUDConstraintsMidHook = safetyhook::create_mid(HUDConstraintsScanResult,
                 [](SafetyHookContext& ctx)
                 {
-                    if (ctx.rax + 0x221)
-                    {
-                        string objName = string((char*)ctx.rax+0x221, 16);
-                        
-                        // Gameplay HUD
-                        if (objName.find("T_MS14_0622") != string::npos)
-                        {
-                            // Span to edges of screen
-                            *reinterpret_cast<float*>(ctx.rax + 0x1F4) = (float)2160 * fAspectRatio;
-                        }
-                    }
-
-                    // Main Menu HUD
-                    if (*reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)141651223)
+                    // Gameplay HUD = 1719602056
+                    if (*reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)1719602056)
                     {
                         // Span
-                        *reinterpret_cast<float*>(ctx.rax + 0x1F4) = (float)2160 * fAspectRatio;
+                        if (fAspectRatio > fNativeAspect)
+                        {
+                            ctx.xmm2.f32[0] = (float)2160 * fAspectRatio;
+                        }
+                        else if (fAspectRatio < fNativeAspect)
+                        {
+                            ctx.xmm0.f32[0] = (float)3840 / fAspectRatio;
+                        }
                     }
                     // Guard & Lock-On
                     if (*reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)605904162)
                     {
                         // Offset
-                        *reinterpret_cast<float*>(ctx.rax + 0x1CC) = (float)-(((2160 * fAspectRatio) - 3840) / 2);
+                        if (fAspectRatio > fNativeAspect)
+                        {
+                            *reinterpret_cast<float*>(ctx.rax + 0x1CC) = (float)-(((2160 * fAspectRatio) - 3840) / 2);
+                        }
+                        else if (fAspectRatio < fNativeAspect)
+                        {
+                            *reinterpret_cast<float*>(ctx.rax + 0x1D0) = (float)-(((3840 / fAspectRatio) - 2160) / 2);
+                        }     
                     }
                     // Dodge
                     if (*reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)3550204025)
                     {
                         // Offset
-                        *reinterpret_cast<float*>(ctx.rax + 0x1CC) = (float)(((2160 * fAspectRatio) - 3840) / 2);
+                        if (fAspectRatio > fNativeAspect)
+                        {
+                            *reinterpret_cast<float*>(ctx.rax + 0x1CC) = (float)(((2160 * fAspectRatio) - 3840) / 2);
+                        }
+                        else if (fAspectRatio < fNativeAspect)
+                        {
+                            *reinterpret_cast<float*>(ctx.rax + 0x1D0) = (float)-(((3840 / fAspectRatio) - 2160) / 2);
+                        }
                     }
                 });
         }
