@@ -20,6 +20,7 @@ filesystem::path sExePath;
 RECT rcDesktop;
 
 // Ini Variables
+int iInjectionDelay;
 bool bCustomResolution;
 int iCustomResX;
 int iCustomResY;
@@ -94,6 +95,7 @@ void ReadConfig()
     }
 
     // Read ini file
+    inipp::get_value(ini.sections["GBFRelinkFix Parameters"], "InjectionDelay", iInjectionDelay);
     inipp::get_value(ini.sections["Custom Resolution"], "Enabled", bCustomResolution);
     inipp::get_value(ini.sections["Custom Resolution"], "Width", iCustomResX);
     inipp::get_value(ini.sections["Custom Resolution"], "Height", iCustomResY);
@@ -105,6 +107,7 @@ void ReadConfig()
     inipp::get_value(ini.sections["Span HUD"], "Enabled", bSpanHUD);
 
     // Log config parse
+    spdlog::info("Config Parse: iInjectionDelay: {}ms", iInjectionDelay);
     spdlog::info("Config Parse: bCustomResolution: {}", bCustomResolution);
     spdlog::info("Config Parse: iCustomResX: {}", iCustomResX);
     spdlog::info("Config Parse: iCustomResY: {}", iCustomResY);
@@ -158,7 +161,7 @@ void ReadConfig()
     spdlog::info("----------");
 }
 
-void CustomResolution()
+void ApplyResolution()
 { 
     if (bCustomResolution)
     {
@@ -180,7 +183,14 @@ void CustomResolution()
         {
             spdlog::error("Custom Resolution: Pattern scan failed.");
         }
+    }
+}
 
+void GraphicalFixes()
+{
+    if (bCustomResolution)
+    {
+        // Fix graphical corruption when resolution width is not divisible by 32
         float graphicsWidth = (float)iCustomResX / 32;
         if (floor(graphicsWidth) != graphicsWidth)
         {
@@ -231,7 +241,7 @@ void CustomResolution()
 
                     }
                 });
-         
+
         }
         else if (!ScreenEffectsScanResult)
         {
@@ -483,7 +493,9 @@ DWORD __stdcall Main(void*)
 {
     Logging();
     ReadConfig();
-    CustomResolution();
+    ApplyResolution();
+    Sleep(iInjectionDelay);
+    GraphicalFixes();
     AspectFOVFix();
     HUDFix();
     FPSCap();
