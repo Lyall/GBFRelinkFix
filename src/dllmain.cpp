@@ -32,6 +32,7 @@ bool bAspectFix;
 bool bFOVFix;
 bool bShadowQuality;
 int iShadowQuality;
+float fLODMulti;
 bool bDisableTAA;
 bool bFPSCap;
 
@@ -111,7 +112,8 @@ void ReadConfig()
     inipp::get_value(ini.sections["Fix Aspect Ratio"], "Enabled", bAspectFix);
     inipp::get_value(ini.sections["Fix FOV"], "Enabled", bFOVFix);
     inipp::get_value(ini.sections["Shadow Quality"], "Enabled", bShadowQuality);
-    inipp::get_value(ini.sections["Shadow Quality"], "Enabled", iShadowQuality);
+    inipp::get_value(ini.sections["Shadow Quality"], "Value", iShadowQuality);
+    inipp::get_value(ini.sections["Level of Detail"], "Multiplier", fLODMulti);
     inipp::get_value(ini.sections["Disable TAA"], "Enabled", bDisableTAA);
     inipp::get_value(ini.sections["Raise Framerate Cap"], "Enabled", bFPSCap);
 
@@ -126,6 +128,7 @@ void ReadConfig()
         fFOVMulti = std::clamp(fFOVMulti, (float)0.1, (float)2.5);
         spdlog::info("Config Parse: fFOVMulti value invalid, clamped to {}", fFOVMulti);
     }
+    spdlog::info("Config Parse: fCamDistMulti: {}", fCamDistMulti);
     if (fCamDistMulti < (float)0.1 || fCamDistMulti >(float)2.5)
     {
         fCamDistMulti = std::clamp(fCamDistMulti, (float)0.1, (float)2.5);
@@ -141,6 +144,12 @@ void ReadConfig()
     {
         iShadowQuality = std::clamp(iShadowQuality, 128, 16384);
         spdlog::info("Config Parse: iShadowQuality value invalid, clamped to {}", iShadowQuality);
+    }
+    spdlog::info("Config Parse: fLODMulti: {}", fLODMulti);
+    if (fLODMulti < (float)0.1 || fLODMulti >(float)10)
+    {
+        fLODMulti = std::clamp(fLODMulti, (float)0.1, (float)10);
+        spdlog::info("Config Parse: fLODMulti value invalid, clamped to {}", fLODMulti);
     }
     spdlog::info("Config Parse: bDisableTAA: {}", bDisableTAA);
     spdlog::info("Config Parse: bFPSCap: {}", bFPSCap);
@@ -579,6 +588,26 @@ void GraphicalTweaks()
         else if (!ShadowQualityScanResult)
         {
             spdlog::error("Shadow Quality: Pattern scan failed.");
+        }
+    }
+
+    if (fLODMulti != (float)1)
+    {
+        uint8_t* LODDistanceScanResult = Memory::PatternScan(baseModule, "C5 ?? ?? ?? ?? ?? ?? 00 C6 ?? ?? ?? ?? 00 01 83 ?? ?? 00 0F ?? ?? ?? ?? 00 31 ??");
+        if (LODDistanceScanResult)
+        {
+            spdlog::info("Level of Detail: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)LODDistanceScanResult - (uintptr_t)baseModule);
+
+            static SafetyHookMid LODDistanceMidHook{};
+            LODDistanceMidHook = safetyhook::create_mid(LODDistanceScanResult,
+                [](SafetyHookContext& ctx)
+                {
+                    ctx.xmm1.f32[0] *= fLODMulti;
+                });
+        }
+        else if (!LODDistanceScanResult)
+        {
+            spdlog::error("Level of Detail: Pattern scan failed.");
         }
     }
 
