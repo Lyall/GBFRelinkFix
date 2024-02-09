@@ -12,7 +12,7 @@ HMODULE baseModule = GetModuleHandle(NULL);
 // Logger and config setup
 inipp::Ini<char> ini;
 string sFixName = "GBFRelinkFix";
-string sFixVer = "1.0.2";
+string sFixVer = "1.0.3";
 string sLogFile = "GBFRelinkFix.log";
 string sConfigFile = "GBFRelinkFix.ini";
 string sExeName;
@@ -27,10 +27,14 @@ int iCustomResY;
 float fFOVMulti;
 float fCamDistMulti;
 bool bHUDFix;
+bool bSpanHUD;
 bool bAspectFix;
 bool bFOVFix;
+bool bShadowQuality;
+int iShadowQuality;
+bool bDisableTAA;
 bool bFPSCap;
-bool bSpanHUD;
+
 
 // Aspect ratio + HUD stuff
 float fNativeAspect = (float)16 / 9;
@@ -103,10 +107,13 @@ void ReadConfig()
     inipp::get_value(ini.sections["Gameplay FOV"], "Multiplier", fFOVMulti);
     inipp::get_value(ini.sections["Gameplay Camera Distance"], "Multiplier", fCamDistMulti);
     inipp::get_value(ini.sections["Fix HUD"], "Enabled", bHUDFix);
+    inipp::get_value(ini.sections["Span HUD"], "Enabled", bSpanHUD);
     inipp::get_value(ini.sections["Fix Aspect Ratio"], "Enabled", bAspectFix);
     inipp::get_value(ini.sections["Fix FOV"], "Enabled", bFOVFix);
+    inipp::get_value(ini.sections["Shadow Quality"], "Enabled", bShadowQuality);
+    inipp::get_value(ini.sections["Shadow Quality"], "Enabled", iShadowQuality);
+    inipp::get_value(ini.sections["Disable TAA"], "Enabled", bDisableTAA);
     inipp::get_value(ini.sections["Raise Framerate Cap"], "Enabled", bFPSCap);
-    inipp::get_value(ini.sections["Span HUD"], "Enabled", bSpanHUD);
 
     // Log config parse
     spdlog::info("Config Parse: iInjectionDelay: {}ms", iInjectionDelay);
@@ -125,10 +132,18 @@ void ReadConfig()
         spdlog::info("Config Parse: fCamDistMulti value invalid, clamped to {}", fCamDistMulti);
     }
     spdlog::info("Config Parse: bHUDFix: {}", bHUDFix);
+    spdlog::info("Config Parse: bSpanHUD: {}", bSpanHUD);
     spdlog::info("Config Parse: bAspectFix: {}", bAspectFix);
     spdlog::info("Config Parse: bFOVFix: {}", bFOVFix);
+    spdlog::info("Config Parse: bShadowQuality: {}", bShadowQuality);
+    spdlog::info("Config Parse: iShadowQuality: {}", iShadowQuality);
+    if (iShadowQuality < 256 || iShadowQuality > 8192)
+    {
+        iShadowQuality = std::clamp(iShadowQuality, 128, 16384);
+        spdlog::info("Config Parse: iShadowQuality value invalid, clamped to {}", iShadowQuality);
+    }
+    spdlog::info("Config Parse: bDisableTAA: {}", bDisableTAA);
     spdlog::info("Config Parse: bFPSCap: {}", bFPSCap);
-    spdlog::info("Config Parse: bSpanHUD: {}", bSpanHUD);
     spdlog::info("----------");
 
     // Calculate aspect ratio / use desktop res instead
@@ -543,6 +558,48 @@ void HUDFix()
     }
 }
 
+void GraphicalTweaks()
+{
+    if (bShadowQuality)
+    {
+        // Set FPS cap
+        uint8_t* ShadowQualityScanResult = Memory::PatternScan(baseModule, "8B ?? ?? ?? C4 ?? ?? ?? ?? C5 ?? ?? ?? ?? ?? ?? ?? C5 ?? ?? ?? ?? ?? ?? 00");
+        if (ShadowQualityScanResult)
+        {
+            spdlog::info("Shadow Quality: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)ShadowQualityScanResult - (uintptr_t)baseModule);
+
+            static SafetyHookMid ShadowQualityMidHook{};
+            ShadowQualityMidHook = safetyhook::create_mid(ShadowQualityScanResult,
+                [](SafetyHookContext& ctx)
+                {
+                    *reinterpret_cast<int*>(ctx.rcx + (ctx.rdx + 0x4)) = iShadowQuality;
+                    *reinterpret_cast<int*>(ctx.rcx + (ctx.rdx + 0x8)) = iShadowQuality;
+                });
+        }
+        else if (!ShadowQualityScanResult)
+        {
+            spdlog::error("Shadow Quality: Pattern scan failed.");
+        }
+    }
+
+    if (bDisableTAA)
+    {
+        // Disable TAA
+        uint8_t* TemporalAAScanResult = Memory::PatternScan(baseModule, "0F ?? ?? ?? 88 ?? ?? 48 ?? ?? ?? 48 ?? ?? ?? 48 ?? ?? ?? 48 ?? ?? ?? 48 ?? ?? ?? 5E");
+        if (TemporalAAScanResult)
+        {
+            spdlog::info("Temporal AA: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)TemporalAAScanResult - (uintptr_t)baseModule);
+            // xor ecx, ecx
+            Memory::PatchBytes((uintptr_t)TemporalAAScanResult, "\x31\xC9\x90\x90", 4);
+            spdlog::info("Temporal AA: Patched instruction to disable TAA.");
+        }
+        else if (!TemporalAAScanResult)
+        {
+            spdlog::error("Temporal AA: Pattern scan failed.");
+        }
+    }
+}
+
 void FPSCap()
 {
     if (bFPSCap)
@@ -577,6 +634,7 @@ DWORD __stdcall Main(void*)
     GraphicalFixes();
     AspectFOVFix();
     HUDFix();
+    GraphicalTweaks();
     FPSCap();
     return true;
 }

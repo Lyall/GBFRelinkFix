@@ -91,7 +91,7 @@ namespace Memory
         return (address + 4 + *reinterpret_cast<std::int32_t*>(address));
     }
 
-    std::uintptr_t* findFromOffsets(std::uintptr_t ptr, std::vector<std::ptrdiff_t> offsets)
+    std::uintptr_t* FindFromOffsets(std::uintptr_t ptr, std::vector<std::ptrdiff_t> offsets)
     {
         std::uintptr_t* addr = &ptr; // creates a pointer to the first parameter
         for (int i = 0; i < offsets.size(); i++) // Loops through each offset
@@ -103,4 +103,19 @@ namespace Memory
 
         return addr; // Returns address
     };
+}
+
+namespace Util
+{
+    int RoundUpInt(int numToRound, int multiple)
+    {
+        if (multiple == 0)
+            return numToRound;
+
+        int remainder = numToRound % multiple;
+        if (remainder == 0)
+            return numToRound;
+
+        return numToRound + multiple - remainder;
+    }
 }
