@@ -25,6 +25,7 @@ bool bCustomResolution;
 int iCustomResX;
 int iCustomResY;
 float fFOVMulti;
+float fCamDistMulti;
 bool bHUDFix;
 bool bAspectFix;
 bool bFOVFix;
@@ -100,6 +101,7 @@ void ReadConfig()
     inipp::get_value(ini.sections["Custom Resolution"], "Width", iCustomResX);
     inipp::get_value(ini.sections["Custom Resolution"], "Height", iCustomResY);
     inipp::get_value(ini.sections["Gameplay FOV"], "Multiplier", fFOVMulti);
+    inipp::get_value(ini.sections["Gameplay Camera Distance"], "Multiplier", fCamDistMulti);
     inipp::get_value(ini.sections["Fix HUD"], "Enabled", bHUDFix);
     inipp::get_value(ini.sections["Fix Aspect Ratio"], "Enabled", bAspectFix);
     inipp::get_value(ini.sections["Fix FOV"], "Enabled", bFOVFix);
@@ -116,6 +118,11 @@ void ReadConfig()
     {
         fFOVMulti = std::clamp(fFOVMulti, (float)0.1, (float)2.5);
         spdlog::info("Config Parse: fFOVMulti value invalid, clamped to {}", fFOVMulti);
+    }
+    if (fCamDistMulti < (float)0.1 || fCamDistMulti >(float)2.5)
+    {
+        fCamDistMulti = std::clamp(fCamDistMulti, (float)0.1, (float)2.5);
+        spdlog::info("Config Parse: fCamDistMulti value invalid, clamped to {}", fCamDistMulti);
     }
     spdlog::info("Config Parse: bHUDFix: {}", bHUDFix);
     spdlog::info("Config Parse: bAspectFix: {}", bAspectFix);
@@ -275,25 +282,25 @@ void AspectFOVFix()
     }
 
     // Gameplay FOV
-    uint8_t* GameplayFOVScanResult = Memory::PatternScan(baseModule, "75 ?? C5 ?? ?? ?? ?? ?? ?? 00 48 ?? ?? ?? C5 ?? ?? ?? ?? ?? ?? 00 C6 ?? ?? ?? ?? 00 01");
+    uint8_t* GameplayFOVScanResult = Memory::PatternScan(baseModule, "C5 ?? ?? ?? ?? ?? ?? 00 C5 ?? ?? ?? ?? ?? ?? ?? 00 80 ?? ?? 00 74 ??");
     if (GameplayFOVScanResult)
     {
         spdlog::info("Gameplay FOV: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)GameplayFOVScanResult - (uintptr_t)baseModule);
 
         static SafetyHookMid GameplayFOVMidHook{};
-        GameplayFOVMidHook = safetyhook::create_mid(GameplayFOVScanResult + 0xE,
+        GameplayFOVMidHook = safetyhook::create_mid(GameplayFOVScanResult,
             [](SafetyHookContext& ctx)
             {
                 // Fix gameplay FOV at <16:9
                 if (bFOVFix && (fNativeAspect > fAspectRatio))
                 {
-                    ctx.xmm0.f32[0] /= fAspectMultiplier;
+                    ctx.xmm10.f32[0] /= fAspectMultiplier;
                 }
 
                 // Run FOV multiplier
                 if (fFOVMulti != (float)1)
                 {
-                    ctx.xmm0.f32[0] *= fFOVMulti;
+                    ctx.xmm10.f32[0] *= fFOVMulti;
                 }
             });
     }
@@ -302,6 +309,27 @@ void AspectFOVFix()
         spdlog::error("Gameplay FOV: Pattern scan failed.");
     }
 
+    if (fCamDistMulti != (float)1)
+    {
+        // Gameplay Camera Distance
+        uint8_t* GameplayCameraDistScanResult = Memory::PatternScan(baseModule, "C5 ?? ?? ?? ?? ?? ?? 00 C5 ?? ?? ?? ?? ?? 48 8B ?? ?? ?? ?? ?? 48 ?? ?? 48 ?? ?? ?? 48 ?? ?? 74 ??");
+        if (GameplayCameraDistScanResult)
+        {
+            spdlog::info("Gameplay Camera Distance: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)GameplayCameraDistScanResult - (uintptr_t)baseModule);
+
+            static SafetyHookMid GameplayCameraDistMidHook{};
+            GameplayCameraDistMidHook = safetyhook::create_mid(GameplayCameraDistScanResult + 0x8,
+                [](SafetyHookContext& ctx)
+                {
+                    // Run camera distance multiplier
+                    ctx.xmm9.f32[0] *= fCamDistMulti;
+                });
+        }   
+        else if (!GameplayCameraDistScanResult)
+        {
+            spdlog::error("Gameplay Camera Distance: Pattern scan failed.");
+        }
+    }
 
     if (bFOVFix && (fNativeAspect > fAspectRatio))
     {
