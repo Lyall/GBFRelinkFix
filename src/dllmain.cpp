@@ -581,8 +581,13 @@ void GraphicalTweaks()
             ShadowQualityMidHook = safetyhook::create_mid(ShadowQualityScanResult,
                 [](SafetyHookContext& ctx)
                 {
-                    *reinterpret_cast<int*>(ctx.rcx + (ctx.rdx + 0x4)) = iShadowQuality;
-                    *reinterpret_cast<int*>(ctx.rcx + (ctx.rdx + 0x8)) = iShadowQuality;
+                    if (iShadowQuality > 2048)
+                    {
+                        *reinterpret_cast<int*>(ctx.rcx + (ctx.rdx + 0x4)) = iShadowQuality;
+                        *reinterpret_cast<int*>(ctx.rcx + (ctx.rdx + 0x8)) = iShadowQuality;
+                    }
+                    *reinterpret_cast<int*>(ctx.rcx + (ctx.rdx + 0xC)) = iShadowQuality;
+                    *reinterpret_cast<int*>(ctx.rcx + (ctx.rdx + 0x10)) = iShadowQuality;
                 });
         }
         else if (!ShadowQualityScanResult)
