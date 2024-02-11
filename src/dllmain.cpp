@@ -12,7 +12,7 @@ HMODULE baseModule = GetModuleHandle(NULL);
 // Logger and config setup
 inipp::Ini<char> ini;
 string sFixName = "GBFRelinkFix";
-string sFixVer = "1.0.3";
+string sFixVer = "1.0.4";
 string sLogFile = "GBFRelinkFix.log";
 string sConfigFile = "GBFRelinkFix.ini";
 string sExeName;
@@ -28,6 +28,7 @@ float fFOVMulti;
 float fCamDistMulti;
 bool bHUDFix;
 bool bSpanHUD;
+float fHUDAspectRatio;
 bool bAspectFix;
 bool bFOVFix;
 bool bShadowQuality;
@@ -35,7 +36,6 @@ int iShadowQuality;
 float fLODMulti;
 bool bDisableTAA;
 bool bFPSCap;
-
 
 // Aspect ratio + HUD stuff
 float fNativeAspect = (float)16 / 9;
@@ -109,6 +109,7 @@ void ReadConfig()
     inipp::get_value(ini.sections["Gameplay Camera Distance"], "Multiplier", fCamDistMulti);
     inipp::get_value(ini.sections["Fix HUD"], "Enabled", bHUDFix);
     inipp::get_value(ini.sections["Span HUD"], "Enabled", bSpanHUD);
+    inipp::get_value(ini.sections["Span HUD"], "AspectRatio", fHUDAspectRatio);
     inipp::get_value(ini.sections["Fix Aspect Ratio"], "Enabled", bAspectFix);
     inipp::get_value(ini.sections["Fix FOV"], "Enabled", bFOVFix);
     inipp::get_value(ini.sections["Shadow Quality"], "Enabled", bShadowQuality);
@@ -136,6 +137,7 @@ void ReadConfig()
     }
     spdlog::info("Config Parse: bHUDFix: {}", bHUDFix);
     spdlog::info("Config Parse: bSpanHUD: {}", bSpanHUD);
+    spdlog::info("Config Parse: fHUDAspectRatio: {}", fHUDAspectRatio);
     spdlog::info("Config Parse: bAspectFix: {}", bAspectFix);
     spdlog::info("Config Parse: bFOVFix: {}", bFOVFix);
     spdlog::info("Config Parse: bShadowQuality: {}", bShadowQuality);
@@ -153,7 +155,6 @@ void ReadConfig()
     }
     spdlog::info("Config Parse: bDisableTAA: {}", bDisableTAA);
     spdlog::info("Config Parse: bFPSCap: {}", bFPSCap);
-    spdlog::info("----------");
 
     // Calculate aspect ratio / use desktop res instead
     GetWindowRect(GetDesktopWindow(), &rcDesktop);
@@ -181,6 +182,13 @@ void ReadConfig()
         fHUDWidthOffset = 0;
         fHUDHeightOffset = (float)(iCustomResY - fHUDHeight) / 2;
     }
+
+    if (fHUDAspectRatio == (float)0)
+    {
+        fHUDAspectRatio = fAspectRatio;
+        spdlog::info("Config Parse: fHUDAspectRatio = 0, set to {}", fHUDAspectRatio);
+    }
+    spdlog::info("----------");
 
     // Log aspect ratio stuff
     spdlog::info("Custom Resolution: fAspectRatio: {}", fAspectRatio);
@@ -443,7 +451,6 @@ void HUDFix()
                 UIBackgroundsWidthMidHook = safetyhook::create_mid(UIBackgroundsScanResult,
                     [](SafetyHookContext& ctx)
                     {
-
                         // If it is 3840px wide then it must span the entire screen
                         if (*reinterpret_cast<float*>(ctx.rax + 0x1F4) == (float)3840)
                         {
@@ -525,11 +532,11 @@ void HUDFix()
                         // Span
                         if (fAspectRatio > fNativeAspect)
                         {
-                            ctx.xmm2.f32[0] = (float)2160 * fAspectRatio;
+                            ctx.xmm2.f32[0] = (float)2160 * fHUDAspectRatio;
                         }
                         else if (fAspectRatio < fNativeAspect)
                         {
-                            ctx.xmm0.f32[0] = (float)3840 / fAspectRatio;
+                            ctx.xmm0.f32[0] = (float)3840 / fHUDAspectRatio;
                         }
                     }
                     // Guard & Lock-On
@@ -538,12 +545,12 @@ void HUDFix()
                         // Offset
                         if (fAspectRatio > fNativeAspect)
                         {
-                            *reinterpret_cast<float*>(ctx.rax + 0x1CC) = (float)-(((2160 * fAspectRatio) - 3840) / 2);
+                            *reinterpret_cast<float*>(ctx.rax + 0x1CC) = (float)-(((2160 * fHUDAspectRatio) - 3840) / 2);
                         }
                         else if (fAspectRatio < fNativeAspect)
                         {
-                            *reinterpret_cast<float*>(ctx.rax + 0x1D0) = (float)-(((3840 / fAspectRatio) - 2160) / 2);
-                        }     
+                            *reinterpret_cast<float*>(ctx.rax + 0x1D0) = (float)-(((3840 / fHUDAspectRatio) - 2160) / 2);
+                        }
                     }
                     // Dodge
                     if (*reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)3550204025)
@@ -551,11 +558,11 @@ void HUDFix()
                         // Offset
                         if (fAspectRatio > fNativeAspect)
                         {
-                            *reinterpret_cast<float*>(ctx.rax + 0x1CC) = (float)(((2160 * fAspectRatio) - 3840) / 2);
+                            *reinterpret_cast<float*>(ctx.rax + 0x1CC) = (float)(((2160 * fHUDAspectRatio) - 3840) / 2);
                         }
                         else if (fAspectRatio < fNativeAspect)
                         {
-                            *reinterpret_cast<float*>(ctx.rax + 0x1D0) = (float)-(((3840 / fAspectRatio) - 2160) / 2);
+                            *reinterpret_cast<float*>(ctx.rax + 0x1D0) = (float)-(((3840 / fHUDAspectRatio) - 2160) / 2);
                         }
                     }
                 });
