@@ -485,12 +485,11 @@ void HUDFix()
                         // If it is 3840px wide then it must span the entire screen
                         if (*reinterpret_cast<float*>(ctx.rax + 0x1F4) == (float)3840)
                         {
-                            // Fade to black = 1932007245 | Pause screen bg = 1611295806 | Dialogue bg = 2454207042  | Title menu bg = 4291119775
+                            // Fade to black = 1932007245 | Pause screen bg = 1611295806 | Title menu bg = 4291119775
                             // Main menu bg = 2384707215  | Lyria's journal = 3818795736 | Load save bg = 3969399384 | Title fade white = 1646463024
                             // Main menu transition bg = 2056445562 | Title menu fade black = 3970768321 | Title options bg 1 = 603087221 | Title options bg 2 = 61148732
                             if (*reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)1932007245
                                 || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)1611295806
-                                || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)2454207042
                                 || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)4291119775
                                 || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)2384707215
                                 || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)3818795736
