@@ -29,7 +29,7 @@ This is a fix that adds custom resolutions, ultrawide support and more to Granbl
 Please report any issues you see.
 This list will contain bugs which may or may not be fixed.
 
-- Raising FPS cap can cause issues with physics. [#2](https://github.com/Lyall/GBFRelinkFix/issues/2)
+- Cloth/hair physics are diminished above 30fps. [#2](https://github.com/Lyall/GBFRelinkFix/issues/2)
   
 ## Screenshots
 
