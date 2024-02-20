@@ -107,15 +107,10 @@ namespace Memory
 
 namespace Util
 {
-    int RoundUpInt(int numToRound, int multiple)
-    {
-        if (multiple == 0)
-            return numToRound;
+    std::pair<int, int> GetPhysicalDesktopDimensions() {
+        if (DEVMODE devMode{ .dmSize = sizeof(DEVMODE) }; EnumDisplaySettings(nullptr, ENUM_CURRENT_SETTINGS, &devMode))
+            return { devMode.dmPelsWidth, devMode.dmPelsHeight };
 
-        int remainder = numToRound % multiple;
-        if (remainder == 0)
-            return numToRound;
-
-        return numToRound + multiple - remainder;
+        return {};
     }
 }

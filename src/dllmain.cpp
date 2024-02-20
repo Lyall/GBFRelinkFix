@@ -17,7 +17,7 @@ string sLogFile = "GBFRelinkFix.log";
 string sConfigFile = "GBFRelinkFix.ini";
 string sExeName;
 filesystem::path sExePath;
-RECT rcDesktop;
+std::pair DesktopDimensions = { 0,0 };
 
 // Ini Variables
 int iInjectionDelay;
@@ -54,7 +54,7 @@ void Logging()
     {
         try
         {
-            auto logger = spdlog::basic_logger_mt(sFixName.c_str(), sLogFile, true);
+            auto logger = spdlog::basic_logger_mt(sFixName.c_str(), "./scripts/" + sLogFile, true);
             spdlog::set_default_logger(logger);
 
         }
@@ -88,12 +88,11 @@ void Logging()
 void ReadConfig()
 {
     // Initialise config
-    std::ifstream iniFile(sConfigFile);
+    std::ifstream iniFile("./scripts/" + sConfigFile);
     if (!iniFile)
     {
         spdlog::critical("Failed to load config file.");
         spdlog::critical("Make sure {} is present in the game folder.", sConfigFile);
-
     }
     else
     {
@@ -157,16 +156,19 @@ void ReadConfig()
     spdlog::info("Config Parse: bFPSCap: {}", bFPSCap);
 
     // Calculate aspect ratio / use desktop res instead
-    GetWindowRect(GetDesktopWindow(), &rcDesktop);
+    DesktopDimensions = Util::GetPhysicalDesktopDimensions();
+
     if (iCustomResX > 0 && iCustomResY > 0)
     {
         fAspectRatio = (float)iCustomResX / (float)iCustomResY;
     }
     else
     {
-        iCustomResX = (int)rcDesktop.right;
-        iCustomResY = (int)rcDesktop.bottom;
-        fAspectRatio = (float)rcDesktop.right / (float)rcDesktop.bottom;
+        iCustomResX = (int)DesktopDimensions.first;
+        iCustomResY = (int)DesktopDimensions.second;
+        fAspectRatio = (float)DesktopDimensions.first / (float)DesktopDimensions.second;
+        spdlog::info("Custom Resolution: iCustomResX: Desktop Width: {}", iCustomResX);
+        spdlog::info("Custom Resolution: iCustomResY: Desktop Height: {}", iCustomResY);
     }
     fAspectMultiplier = fAspectRatio / fNativeAspect;
 
@@ -182,13 +184,6 @@ void ReadConfig()
         fHUDWidthOffset = 0;
         fHUDHeightOffset = (float)(iCustomResY - fHUDHeight) / 2;
     }
-
-    if (fHUDAspectRatio == (float)0)
-    {
-        fHUDAspectRatio = fAspectRatio;
-        spdlog::info("Config Parse: fHUDAspectRatio = 0, set to {}", fHUDAspectRatio);
-    }
-    spdlog::info("----------");
 
     // Log aspect ratio stuff
     spdlog::info("Custom Resolution: fAspectRatio: {}", fAspectRatio);
@@ -662,6 +657,26 @@ void FPSCap()
         {
             spdlog::error("FPS Cap: Pattern scan failed.");
         }
+    }
+
+    // Physics
+    uint8_t* ClothPhysicsScanResult = Memory::PatternScan(baseModule, "F6 ?? 01 74 ?? C5 ?? ?? ?? 4B ?? ?? ?? 48 ?? ?? 04");
+    if (ClothPhysicsScanResult)
+    {
+        spdlog::info("Physics: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)ClothPhysicsScanResult - (uintptr_t)baseModule);
+        /*
+        static SafetyHookMid ClothPhysicsMidHook{};
+        ClothPhysicsMidHook = safetyhook::create_mid(ClothPhysicsScanResult + 0x5,
+            [](SafetyHookContext& ctx)
+            {
+                // Menus seem to speed up beyond 240fps.
+                ctx.xmm0.f32[0] = (float)1 / 30;
+            });
+            */
+    }
+    else if (!ClothPhysicsScanResult)
+    {
+        spdlog::error("Physics: Pattern scan failed.");
     }
 }
 
