@@ -12,7 +12,7 @@ HMODULE baseModule = GetModuleHandle(NULL);
 // Logger and config setup
 inipp::Ini<char> ini;
 string sFixName = "GBFRelinkFix";
-string sFixVer = "1.0.4";
+string sFixVer = "1.0.5";
 string sLogFile = "GBFRelinkFix.log";
 string sConfigFile = "GBFRelinkFix.ini";
 string sExeName;
