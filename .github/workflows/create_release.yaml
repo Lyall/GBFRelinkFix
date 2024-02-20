@@ -28,10 +28,13 @@ jobs:
         repository: "ThirteenAG/Ultimate-ASI-Loader"
         latest: true
         fileName: "Ultimate-ASI-Loader_x64.zip"
-    - run: unzip Ultimate-ASI-Loader_x64.zip -d .\
-    - run: C:\msys64\usr\bin\wget.exe -O .\UltimateASILoader_LICENSE.md https://raw.githubusercontent.com/ThirteenAG/Ultimate-ASI-Loader/master/license 
-    - run: New-Item -Path ".\EXTRACT_TO_GAME_FOLDER" -ItemType File
-    - run: 7z a -tzip ${{ github.event.repository.name }}_${{ github.event.inputs.version }}.zip README.md EXTRACT_TO_GAME_FOLDER ${{ github.event.repository.name }}.ini ${{ github.event.repository.name }}.asi dinput8.dll UltimateASILoader_LICENSE.md
+    - run: unzip Ultimate-ASI-Loader_x64.zip -d .\; C:\msys64\usr\bin\wget.exe -O .\UltimateASILoader_LICENSE.md https://raw.githubusercontent.com/ThirteenAG/Ultimate-ASI-Loader/master/license
+    - run: mkdir .\zip\scripts
+    - run: cp ${{ github.event.repository.name }}.asi .\zip\scripts\; cp ${{ github.event.repository.name }}.ini .\zip\scripts\
+    - run: cp dinput8.dll .\zip\winmm.dll;
+    - run: cp UltimateASILoader_LICENSE.md .\zip\;
+    - run: New-Item -Path ".\zip\EXTRACT_TO_GAME_FOLDER" -ItemType File
+    - run: cd .\zip\; 7z a -r -tzip ..\${{ github.event.repository.name }}_${{ github.event.inputs.version }}.zip .\*
     
     - uses: ncipollo/release-action@v1
       with:
