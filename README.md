@@ -23,7 +23,7 @@ This is a fix that adds custom resolutions, ultrawide support and more to Granbl
 - Open up the game properties in Steam and add `WINEDLLOVERRIDES="winmm=n,b" %command%` to the launch options.
 
 ## Configuration
-- See **GBFRelinkFix.ini** to adjust settings for the fix.
+- See **scripts\GBFRelinkFix.ini** to adjust settings for the fix.
 
 ## Known Issues
 Please report any issues you see.
