@@ -184,7 +184,13 @@ void ReadConfig()
         fHUDWidthOffset = 0;
         fHUDHeightOffset = (float)(iCustomResY - fHUDHeight) / 2;
     }
-
+    
+    if (fHUDAspectRatio == (float)0)
+    {
+        fHUDAspectRatio = fAspectRatio;
+        spdlog::info("Config Parse: fHUDAspectRatio = 0, set to {}", fHUDAspectRatio);
+    }
+    spdlog::info("----------");
     // Log aspect ratio stuff
     spdlog::info("Custom Resolution: fAspectRatio: {}", fAspectRatio);
     spdlog::info("Custom Resolution: fAspectMultiplier: {}", fAspectMultiplier);
