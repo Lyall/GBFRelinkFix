@@ -11,7 +11,7 @@ HMODULE baseModule = GetModuleHandle(NULL);
 inipp::Ini<char> ini;
 std::shared_ptr<spdlog::logger> logger;
 std::string sFixName = "GBFRelinkFix";
-std::string sFixVer = "1.0.6";
+std::string sFixVer = "1.0.7";
 std::string sLogFile = "GBFRelinkFix.log";
 std::string sConfigFile = "GBFRelinkFix.ini";
 std::string sExeName;
@@ -60,7 +60,7 @@ void Logging()
     {
         try
         {
-            logger = spdlog::basic_logger_st(sFixName.c_str(), sExePath.string() +"scripts\\" + sLogFile, true);
+            logger = spdlog::basic_logger_st(sFixName.c_str(), sExePath.string() + "scripts\\" + sLogFile, true);
             spdlog::set_default_logger(logger);
 
             spdlog::flush_on(spdlog::level::debug);
