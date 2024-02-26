@@ -54,7 +54,7 @@ void Logging()
     {
         try
         {
-            auto logger = spdlog::basic_logger_mt(sFixName.c_str(), "./scripts/" + sLogFile, true);
+            auto logger = spdlog::basic_logger_mt(sFixName.c_str(), sLogFile, true);
             spdlog::set_default_logger(logger);
 
         }
@@ -191,6 +191,7 @@ void ReadConfig()
         spdlog::info("Config Parse: fHUDAspectRatio = 0, set to {}", fHUDAspectRatio);
     }
     spdlog::info("----------");
+
     // Log aspect ratio stuff
     spdlog::info("Custom Resolution: fAspectRatio: {}", fAspectRatio);
     spdlog::info("Custom Resolution: fAspectMultiplier: {}", fAspectMultiplier);
