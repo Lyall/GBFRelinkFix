@@ -5,17 +5,16 @@
 #include <spdlog/sinks/basic_file_sink.h>
 #include <safetyhook.hpp>
 
-using namespace std;
-
 HMODULE baseModule = GetModuleHandle(NULL);
 
 // Logger and config setup
 inipp::Ini<char> ini;
-string sFixName = "GBFRelinkFix";
-string sFixVer = "1.0.6";
-string sLogFile = "GBFRelinkFix.log";
-string sConfigFile = "GBFRelinkFix.ini";
-string sExeName;
+std::shared_ptr<spdlog::logger> logger;
+std::string sFixName = "GBFRelinkFix";
+std::string sFixVer = "1.0.6";
+std::string sLogFile = "GBFRelinkFix.log";
+std::string sConfigFile = "GBFRelinkFix.ini";
+std::string sExeName;
 filesystem::path sExePath;
 std::pair DesktopDimensions = { 0,0 };
 
@@ -50,13 +49,33 @@ float fHUDHeightOffset;
 
 void Logging()
 {
+    // Get game name and exe path
+    WCHAR exePath[_MAX_PATH] = { 0 };
+    GetModuleFileNameW(baseModule, exePath, MAX_PATH);
+    sExePath = exePath;
+    sExeName = sExePath.filename().string();
+    sExePath = sExePath.remove_filename();
+
     // spdlog initialisation
     {
         try
         {
-            auto logger = spdlog::basic_logger_mt(sFixName.c_str(), sLogFile, true);
+            logger = spdlog::basic_logger_st(sFixName.c_str(), sExePath.string() +"scripts\\" + sLogFile, true);
             spdlog::set_default_logger(logger);
 
+            spdlog::flush_on(spdlog::level::debug);
+            spdlog::info("----------");
+            spdlog::info("{} v{} loaded.", sFixName.c_str(), sFixVer.c_str());
+            spdlog::info("----------");
+            spdlog::info("Path to logfile: {}", sExePath.string() + "scripts\\" + sLogFile);
+            spdlog::info("----------");
+
+            // Log module details
+            spdlog::info("Module Name: {0:s}", sExeName.c_str());
+            spdlog::info("Module Path: {0:s}", sExePath.string());
+            spdlog::info("Module Address: 0x{0:x}", (uintptr_t)baseModule);
+            spdlog::info("Module Timestamp: {0:d}", Memory::ModuleTimestamp(baseModule));
+            spdlog::info("----------");
         }
         catch (const spdlog::spdlog_ex& ex)
         {
@@ -66,36 +85,31 @@ void Logging()
             std::cout << "Log initialisation failed: " << ex.what() << std::endl;
         }
     }
-
-    spdlog::flush_on(spdlog::level::debug);
-    spdlog::info("{} v{} loaded.", sFixName.c_str(), sFixVer.c_str());
-    spdlog::info("----------");
-
-    // Get game name and exe path
-    WCHAR exePath[_MAX_PATH] = { 0 };
-    GetModuleFileNameW(baseModule, exePath, MAX_PATH);
-    sExePath = exePath;
-    sExeName = sExePath.filename().string();
-
-    // Log module details
-    spdlog::info("Module Name: {0:s}", sExeName.c_str());
-    spdlog::info("Module Path: {0:s}", sExePath.string().c_str());
-    spdlog::info("Module Address: 0x{0:x}", (uintptr_t)baseModule);
-    spdlog::info("Module Timesstamp: {0:d}", Memory::ModuleTimestamp(baseModule));
-    spdlog::info("----------");
 }
 
 void ReadConfig()
 {
     // Initialise config
-    std::ifstream iniFile("./scripts/" + sConfigFile);
+    std::ifstream iniFile("scripts\\" + sConfigFile);
     if (!iniFile)
     {
-        spdlog::critical("Failed to load config file.");
-        spdlog::critical("Make sure {} is present in the game folder.", sConfigFile);
+        spdlog::error("Failed to load config file.");
+        spdlog::info("Trying alternate path.");
+
+        std::ifstream iniFile(sConfigFile);
+        if (!iniFile)
+        {
+            spdlog::critical("Make sure {} is present in the game folder.", sConfigFile);
+        }
+        else
+        {
+            spdlog::info("Path to config file: {}", sExePath.string() + sConfigFile);
+            ini.parse(iniFile);
+        }
     }
     else
     {
+        spdlog::info("Path to config file: {}", sExePath.string() + "scripts\\" + sConfigFile);
         ini.parse(iniFile);
     }
 
