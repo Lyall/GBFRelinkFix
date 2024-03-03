@@ -280,9 +280,9 @@ void GraphicalFixes()
         // Screen Effects
         uint8_t* ScreenEffectsScanResult = Memory::PatternScan(baseModule, "C5 ?? ?? ?? 48 ?? ?? ?? ?? ?? 00 C5 ?? ?? ?? ?? ?? ?? 00 C3") + 0xB;
         uint8_t* ScreenEffects2ScanResult = Memory::PatternScan(baseModule, "C5 ?? ?? ?? ?? C7 ?? ?? 00 00 80 3F F6 ?? ?? ?? 75 ??");
-        if (ScreenEffectsScanResult)
+        if (ScreenEffectsScanResult && ScreenEffects2ScanResult)
         {
-            spdlog::info("Screen Effects: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)ScreenEffectsScanResult - (uintptr_t)baseModule);
+            spdlog::info("Screen Effects: Address 1 is {:s}+{:x}", sExeName.c_str(), (uintptr_t)ScreenEffectsScanResult - (uintptr_t)baseModule);
 
             static SafetyHookMid ScreenEffectsMidHook{};
             ScreenEffectsMidHook = safetyhook::create_mid(ScreenEffectsScanResult,
@@ -294,12 +294,28 @@ void GraphicalFixes()
                     }
                     else if (fAspectRatio < fNativeAspect)
                     {
-                        // TODO: Fix this at <16:9
+                        // Not necessary
                     }
                 });
 
             static SafetyHookMid ScreenEffects2MidHook{};
-            ScreenEffects2MidHook = safetyhook::create_mid(ScreenEffects2ScanResult,
+            ScreenEffects2MidHook = safetyhook::create_mid(ScreenEffectsScanResult - 0x9B, // TODO: This is a long gap, maybe do a third pattern?
+                [](SafetyHookContext& ctx)
+                {
+                    if (fAspectRatio > fNativeAspect)
+                    {
+                       // Not necessary
+                    }
+                    else if (fAspectRatio < fNativeAspect)
+                    {
+                        ctx.xmm1.f32[0] = (float)iCustomResX / fNativeAspect;
+                    }
+                });
+
+            spdlog::info("Screen Effects: Address 2 is {:s}+{:x}", sExeName.c_str(), (uintptr_t)ScreenEffects2ScanResult - (uintptr_t)baseModule);
+
+            static SafetyHookMid ScreenEffects3MidHook{};
+            ScreenEffects3MidHook = safetyhook::create_mid(ScreenEffects2ScanResult,
                 [](SafetyHookContext& ctx)
                 {
                     if (fAspectRatio > fNativeAspect)
@@ -308,12 +324,12 @@ void GraphicalFixes()
                     }
                     else if (fAspectRatio < fNativeAspect)
                     {
-                        // TODO: Fix this at <16:9
+                        ctx.xmm0.f32[0] *= fAspectMultiplier;
                     }
                 });
 
         }
-        else if (!ScreenEffectsScanResult)
+        else if (!ScreenEffectsScanResult || !ScreenEffects2ScanResult)
         {
             spdlog::error("Screen Effects: Pattern scan failed.");
         }
