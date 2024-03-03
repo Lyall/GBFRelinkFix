@@ -279,6 +279,7 @@ void GraphicalFixes()
 
         // Screen Effects
         uint8_t* ScreenEffectsScanResult = Memory::PatternScan(baseModule, "C5 ?? ?? ?? 48 ?? ?? ?? ?? ?? 00 C5 ?? ?? ?? ?? ?? ?? 00 C3") + 0xB;
+        uint8_t* ScreenEffects2ScanResult = Memory::PatternScan(baseModule, "C5 ?? ?? ?? ?? C7 ?? ?? 00 00 80 3F F6 ?? ?? ?? 75 ??");
         if (ScreenEffectsScanResult)
         {
             spdlog::info("Screen Effects: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)ScreenEffectsScanResult - (uintptr_t)baseModule);
@@ -289,11 +290,25 @@ void GraphicalFixes()
                 {
                     if (fAspectRatio > fNativeAspect)
                     {
-                        ctx.xmm0.f32[0] = fAspectMultiplier;
+                        ctx.xmm0.f32[0] = 1.0f;
                     }
                     else if (fAspectRatio < fNativeAspect)
                     {
+                        // TODO: Fix this at <16:9
+                    }
+                });
 
+            static SafetyHookMid ScreenEffects2MidHook{};
+            ScreenEffects2MidHook = safetyhook::create_mid(ScreenEffects2ScanResult,
+                [](SafetyHookContext& ctx)
+                {
+                    if (fAspectRatio > fNativeAspect)
+                    {
+                        ctx.xmm0.f32[0] *= fAspectMultiplier;
+                    }
+                    else if (fAspectRatio < fNativeAspect)
+                    {
+                        // TODO: Fix this at <16:9
                     }
                 });
 
@@ -680,12 +695,13 @@ void FPSCap()
         }
     }
 
+    /*
     // Physics
     uint8_t* ClothPhysicsScanResult = Memory::PatternScan(baseModule, "F6 ?? 01 74 ?? C5 ?? ?? ?? 4B ?? ?? ?? 48 ?? ?? 04");
     if (ClothPhysicsScanResult)
     {
         spdlog::info("Physics: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)ClothPhysicsScanResult - (uintptr_t)baseModule);
-        /*
+       
         static SafetyHookMid ClothPhysicsMidHook{};
         ClothPhysicsMidHook = safetyhook::create_mid(ClothPhysicsScanResult + 0x5,
             [](SafetyHookContext& ctx)
@@ -693,12 +709,13 @@ void FPSCap()
                 // Menus seem to speed up beyond 240fps.
                 ctx.xmm0.f32[0] = (float)1 / 30;
             });
-            */
+            
     }
     else if (!ClothPhysicsScanResult)
     {
         spdlog::error("Physics: Pattern scan failed.");
     }
+    */
 }
 
 DWORD __stdcall Main(void*)
