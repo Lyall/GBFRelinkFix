@@ -338,16 +338,16 @@ void GraphicalFixes()
 
 void AspectFOVFix()
 {
-    if (bAspectFix && (fNativeAspect > fAspectRatio))
+    if (bAspectFix)
     {
         // Aspect Ratio
-        uint8_t* AspectRatioScanResult = Memory::PatternScan(baseModule, "49 ?? ?? ?? ?? C5 ?? ?? ?? ?? ?? ?? 00 C5 ?? ?? ?? C5 ?? ?? ?? C5 ?? ?? ?? C4 ?? ?? ?? ?? ??");
+        uint8_t* AspectRatioScanResult = Memory::PatternScan(baseModule, "74 ?? 49 ?? ?? 48 ?? ?? ?? ?? ?? 00 48 ?? ?? 74 ?? C5 ?? ?? ?? ?? ?? ?? 00 C5 ?? ?? ?? ?? ?? ?? 00 C5 ?? ?? ?? ?? ?? ?? 00 C5 ?? ?? ?? ?? ?? ?? 00 C5 ?? ?? ?? ?? ??");
         if (AspectRatioScanResult)
         {
             spdlog::info("Aspect Ratio: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)AspectRatioScanResult - (uintptr_t)baseModule);
 
             static SafetyHookMid AspectRatioMidHook{};
-            AspectRatioMidHook = safetyhook::create_mid(AspectRatioScanResult + 0x5,
+            AspectRatioMidHook = safetyhook::create_mid(AspectRatioScanResult + 0x11,
                 [](SafetyHookContext& ctx)
                 {
                     *reinterpret_cast<float*>(ctx.rax + 0x9D0) = fAspectRatio;
@@ -357,7 +357,6 @@ void AspectFOVFix()
         {
             spdlog::error("Aspect Ratio: Pattern scan failed.");
         }
-
     }
 
     // Gameplay FOV
@@ -371,7 +370,7 @@ void AspectFOVFix()
             [](SafetyHookContext& ctx)
             {
                 // Fix gameplay FOV at <16:9
-                if (bFOVFix && (fNativeAspect > fAspectRatio))
+                if (bFOVFix && (fAspectRatio < fNativeAspect))
                 {
                     ctx.xmm10.f32[0] /= fAspectMultiplier;
                 }
@@ -410,7 +409,7 @@ void AspectFOVFix()
         }
     }
 
-    if (bFOVFix && (fNativeAspect > fAspectRatio))
+    if (bFOVFix && (fAspectRatio < fNativeAspect))
     {
         // Cutscene FOV
         uint8_t* CutsceneFOVScanResult = Memory::PatternScan(baseModule, "48 ?? ?? ?? C5 ?? ?? ?? ?? ?? ?? 00 C5 ?? ?? ?? ?? ?? ?? 00 C5 ?? ?? ?? ?? ?? ?? ?? C5 ?? ?? ?? ?? ?? ?? ?? 00 48 ?? ??");
@@ -436,8 +435,7 @@ void HUDFix()
 {
     if (bHUDFix)
     {
-        // Don't do this if the aspect ratio is wider than native
-        if (fNativeAspect < fAspectRatio)
+        if (fAspectRatio > fNativeAspect)
         {
             // Force 16:9 UI
             uint8_t* UIAspectScanResult = Memory::PatternScan(baseModule, "39 ?? ?? ?? ?? ?? 75 ?? 48 ?? ?? ?? ?? ?? ?? 39 ?? ?? ?? ?? ?? 0F ?? ?? ?? ?? ??");
@@ -521,7 +519,6 @@ void HUDFix()
                             }
                         }
                     });
-
             }
             else if (fAspectRatio < fNativeAspect)
             {
@@ -556,8 +553,7 @@ void HUDFix()
         else if (!UIBackgroundsScanResult)
         {
             spdlog::error("UI Backgrounds: Pattern scan failed.");
-        }
-        
+        }      
     }
 
     if (bSpanHUD)
