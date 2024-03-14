@@ -11,7 +11,7 @@ HMODULE baseModule = GetModuleHandle(NULL);
 inipp::Ini<char> ini;
 std::shared_ptr<spdlog::logger> logger;
 std::string sFixName = "GBFRelinkFix";
-std::string sFixVer = "1.0.8";
+std::string sFixVer = "1.0.9";
 std::string sLogFile = "GBFRelinkFix.log";
 std::string sConfigFile = "GBFRelinkFix.ini";
 std::string sExeName;
