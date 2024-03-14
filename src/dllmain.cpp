@@ -220,17 +220,17 @@ void ApplyResolution()
 { 
     if (bCustomResolution)
     {
-        uint8_t* ResolutionScanResult = Memory::PatternScan(baseModule, "B8 80 07 00 00 89 ?? ?? ?? 89 ?? ?? ??");
+        uint8_t* ResolutionScanResult = Memory::PatternScan(baseModule, "41 ?? ?? ?? 3C 04 B9 04 00 00 00 0F ?? ?? 0F ?? ??");
         if (ResolutionScanResult)
         {
             spdlog::info("Custom Resolution: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)ResolutionScanResult - (uintptr_t)baseModule);
 
             static SafetyHookMid ResolutionMidHook{};
-            ResolutionMidHook = safetyhook::create_mid(ResolutionScanResult + 0x5,
+            ResolutionMidHook = safetyhook::create_mid(ResolutionScanResult + 0x25,
                 [](SafetyHookContext& ctx)
                 {
-                    ctx.rax = iCustomResX;
-                    ctx.rcx = iCustomResY;
+                    ctx.rcx = iCustomResX;
+                    ctx.rax = iCustomResY;
                 });
             spdlog::info("Custom Resolution: Applied custom resolution of {}x{}", iCustomResX, iCustomResY);
         }
@@ -359,16 +359,22 @@ void AspectFOVFix()
         }
     }
 
-    // Gameplay FOV
-    uint8_t* GameplayFOVScanResult = Memory::PatternScan(baseModule, "C5 ?? ?? ?? ?? ?? ?? 00 C5 ?? ?? ?? ?? ?? ?? ?? 00 80 ?? ?? 00 74 ??");
-    if (GameplayFOVScanResult)
+    // Gameplay Camera
+    uint8_t* GameplayCameraScanResult = Memory::PatternScan(baseModule, "C5 ?? ?? ?? ?? ?? ?? 00 C5 ?? ?? ?? ?? ?? 48 8B ?? ?? ?? ?? ?? 48 ?? ?? 48 ?? ?? ?? 48 ?? ?? 74 ??");
+    if (GameplayCameraScanResult)
     {
-        spdlog::info("Gameplay FOV: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)GameplayFOVScanResult - (uintptr_t)baseModule);
+        spdlog::info("Gameplay Camera: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)GameplayCameraScanResult - (uintptr_t)baseModule);
 
-        static SafetyHookMid GameplayFOVMidHook{};
-        GameplayFOVMidHook = safetyhook::create_mid(GameplayFOVScanResult,
+        static SafetyHookMid GameplayCameraMidHook{};
+        GameplayCameraMidHook = safetyhook::create_mid(GameplayCameraScanResult + 0x8,
             [](SafetyHookContext& ctx)
             {
+                // Run camera distance multiplier
+                if (fCamDistMulti != (float)1)
+                {
+                    ctx.xmm9.f32[0] *= fCamDistMulti;
+                }
+
                 // Fix gameplay FOV at <16:9
                 if (bFOVFix && (fAspectRatio < fNativeAspect))
                 {
@@ -382,31 +388,9 @@ void AspectFOVFix()
                 }
             });
     }
-    else if (!GameplayFOVScanResult)
+    else if (!GameplayCameraScanResult)
     {
-        spdlog::error("Gameplay FOV: Pattern scan failed.");
-    }
-
-    if (fCamDistMulti != (float)1)
-    {
-        // Gameplay Camera Distance
-        uint8_t* GameplayCameraDistScanResult = Memory::PatternScan(baseModule, "C5 ?? ?? ?? ?? ?? ?? 00 C5 ?? ?? ?? ?? ?? 48 8B ?? ?? ?? ?? ?? 48 ?? ?? 48 ?? ?? ?? 48 ?? ?? 74 ??");
-        if (GameplayCameraDistScanResult)
-        {
-            spdlog::info("Gameplay Camera Distance: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)GameplayCameraDistScanResult - (uintptr_t)baseModule);
-
-            static SafetyHookMid GameplayCameraDistMidHook{};
-            GameplayCameraDistMidHook = safetyhook::create_mid(GameplayCameraDistScanResult + 0x8,
-                [](SafetyHookContext& ctx)
-                {
-                    // Run camera distance multiplier
-                    ctx.xmm9.f32[0] *= fCamDistMulti;
-                });
-        }   
-        else if (!GameplayCameraDistScanResult)
-        {
-            spdlog::error("Gameplay Camera Distance: Pattern scan failed.");
-        }
+        spdlog::error("Gameplay Camera: Pattern scan failed.");
     }
 
     if (bFOVFix && (fAspectRatio < fNativeAspect))
@@ -490,30 +474,27 @@ void HUDFix()
         {
             spdlog::info("UI Backgrounds: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)UIBackgroundsScanResult - (uintptr_t)baseModule);
             
+            // Fade to black = 1932007245 | Pause screen bg = 1611295806 | Dialogue bg = 2454207042  | Title menu bg = 4291119775
+            // Main menu bg = 2384707215  | Lyria's journal = 3818795736 | Load save bg = 3969399384 | Title fade white = 1646463024
+            // Main menu transition bg = 2056445562 | Title menu fade black = 3970768321 | Title options bg 1 = 603087221 | Title options bg 2 = 61148732
+            static std::vector<int> BackgroundWidthIDs = { (int)1932007245, (int)1611295806, (int)2454207042, (int)4291119775, (int)2384707215, (int)3818795736, (int)3969399384, (int)1646463024, (int)2056445562, (int)3970768321, (int)61148732, (int)603087221 };
+            static std::vector<int> BackgroundHeightIDs = { (int)1932007245, (int)1611295806, (int)4291119775, (int)2384707215, (int)3818795736, (int)3969399384, (int)1646463024, (int)2056445562, (int)3970768321, (int)61148732, (int)603087221 };
+
             if (fAspectRatio > fNativeAspect)
             {
                 static SafetyHookMid UIBackgroundsWidthMidHook{};
                 UIBackgroundsWidthMidHook = safetyhook::create_mid(UIBackgroundsScanResult,
                     [](SafetyHookContext& ctx)
                     {
+                        int iObjectID = *reinterpret_cast<int*>(ctx.rax + 0x1FC);
+                        float fObjectWidth = *reinterpret_cast<float*>(ctx.rax + 0x1F4);
+                        float fObjectHeight = *reinterpret_cast<float*>(ctx.rax + 0x1F8);
+
                         // If it is 3840px wide then it must span the entire screen
-                        if (*reinterpret_cast<float*>(ctx.rax + 0x1F4) == (float)3840)
+                        if (fObjectWidth == (float)3840)
                         {
-                            // Fade to black = 1932007245 | Pause screen bg = 1611295806 | Dialogue bg = 2454207042  | Title menu bg = 4291119775
-                            // Main menu bg = 2384707215  | Lyria's journal = 3818795736 | Load save bg = 3969399384 | Title fade white = 1646463024
-                            // Main menu transition bg = 2056445562 | Title menu fade black = 3970768321 | Title options bg 1 = 603087221 | Title options bg 2 = 61148732
-                            if (*reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)1932007245
-                                || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)1611295806
-                                || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)2454207042
-                                || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)4291119775
-                                || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)2384707215
-                                || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)3818795736
-                                || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)3969399384
-                                || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)1646463024
-                                || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)2056445562
-                                || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)3970768321
-                                || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)61148732
-                                || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)603087221)
+                            // Check if object ID matches anything in the vector
+                            if (std::find(BackgroundWidthIDs.begin(), BackgroundWidthIDs.end(), iObjectID) != BackgroundWidthIDs.end())
                             {
                                 ctx.xmm0.f32[0] = (float)2160 * fAspectRatio;
                             }
@@ -526,23 +507,15 @@ void HUDFix()
                 UIBackgroundsHeightMidHook = safetyhook::create_mid(UIBackgroundsScanResult + 0x28,
                     [](SafetyHookContext& ctx)
                     {
+                        int iObjectID = *reinterpret_cast<int*>(ctx.rax + 0x1FC);
+                        float fObjectWidth = *reinterpret_cast<float*>(ctx.rax + 0x1F4);
+                        float fObjectHeight = *reinterpret_cast<float*>(ctx.rax + 0x1F8);
+
                         // If it is 3840px wide then it must span the entire screen
-                        if (*reinterpret_cast<float*>(ctx.rax + 0x1F4) == (float)3840)
+                        if (fObjectWidth == (float)3840)
                         {
-                            // Fade to black = 1932007245 | Pause screen bg = 1611295806 | Title menu bg = 4291119775
-                            // Main menu bg = 2384707215  | Lyria's journal = 3818795736 | Load save bg = 3969399384 | Title fade white = 1646463024
-                            // Main menu transition bg = 2056445562 | Title menu fade black = 3970768321 | Title options bg 1 = 603087221 | Title options bg 2 = 61148732
-                            if (*reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)1932007245
-                                || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)1611295806
-                                || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)4291119775
-                                || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)2384707215
-                                || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)3818795736
-                                || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)3969399384
-                                || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)1646463024
-                                || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)2056445562
-                                || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)3970768321
-                                || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)61148732
-                                || *reinterpret_cast<int*>(ctx.rax + 0x1FC) == (int)603087221)
+                            // Check if object ID matches anything in the vector
+                            if (std::find(BackgroundHeightIDs.begin(), BackgroundHeightIDs.end(), iObjectID) != BackgroundHeightIDs.end())
                             {
                                 ctx.xmm4.f32[0] = (float)3840 / fAspectRatio;
                             }
