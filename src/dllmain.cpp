@@ -11,7 +11,7 @@ HMODULE baseModule = GetModuleHandle(NULL);
 inipp::Ini<char> ini;
 std::shared_ptr<spdlog::logger> logger;
 std::string sFixName = "GBFRelinkFix";
-std::string sFixVer = "1.0.9";
+std::string sFixVer = "1.1.0";
 std::string sLogFile = "GBFRelinkFix.log";
 std::string sConfigFile = "GBFRelinkFix.ini";
 std::string sExeName;
@@ -28,6 +28,8 @@ float fCamDistMulti;
 bool bHUDFix;
 bool bSpanHUD;
 float fHUDAspectRatio;
+bool bSpanAllHUD;
+bool bSpanAllBackgrounds;
 bool bAspectFix;
 bool bFOVFix;
 bool bShadowQuality;
@@ -123,6 +125,8 @@ void ReadConfig()
     inipp::get_value(ini.sections["Fix HUD"], "Enabled", bHUDFix);
     inipp::get_value(ini.sections["Span HUD"], "Enabled", bSpanHUD);
     inipp::get_value(ini.sections["Span HUD"], "AspectRatio", fHUDAspectRatio);
+    inipp::get_value(ini.sections["Span HUD"], "SpanAllHUD", bSpanAllHUD);
+    inipp::get_value(ini.sections["Span HUD"], "SpanAllBackgrounds", bSpanAllBackgrounds);
     inipp::get_value(ini.sections["Fix Aspect Ratio"], "Enabled", bAspectFix);
     inipp::get_value(ini.sections["Fix FOV"], "Enabled", bFOVFix);
     inipp::get_value(ini.sections["Shadow Quality"], "Enabled", bShadowQuality);
@@ -151,6 +155,8 @@ void ReadConfig()
     spdlog::info("Config Parse: bHUDFix: {}", bHUDFix);
     spdlog::info("Config Parse: bSpanHUD: {}", bSpanHUD);
     spdlog::info("Config Parse: fHUDAspectRatio: {}", fHUDAspectRatio);
+    spdlog::info("Config Parse: bSpanAllHUD: {}", bSpanAllHUD);
+    spdlog::info("Config Parse: bSpanAllBackgrounds: {}", bSpanAllBackgrounds);
     spdlog::info("Config Parse: bAspectFix: {}", bAspectFix);
     spdlog::info("Config Parse: bFOVFix: {}", bFOVFix);
     spdlog::info("Config Parse: bShadowQuality: {}", bShadowQuality);
@@ -297,7 +303,7 @@ void GraphicalFixes()
                         // Not necessary
                     }
                 });
-
+/*
             static SafetyHookMid ScreenEffects2MidHook{};
             ScreenEffects2MidHook = safetyhook::create_mid(ScreenEffectsScanResult - 0x9B, // TODO: This is a long gap, maybe do a third pattern?
                 [](SafetyHookContext& ctx)
@@ -308,10 +314,10 @@ void GraphicalFixes()
                     }
                     else if (fAspectRatio < fNativeAspect)
                     {
-                        ctx.xmm1.f32[0] = (float)iCustomResX / fNativeAspect;
+                        // Not necessary
                     }
                 });
-
+*/
             spdlog::info("Screen Effects: Address 2 is {:s}+{:x}", sExeName.c_str(), (uintptr_t)ScreenEffects2ScanResult - (uintptr_t)baseModule);
 
             static SafetyHookMid ScreenEffects3MidHook{};
@@ -324,7 +330,7 @@ void GraphicalFixes()
                     }
                     else if (fAspectRatio < fNativeAspect)
                     {
-                        ctx.xmm0.f32[0] *= fAspectMultiplier;
+                        // Not necessary
                     }
                 });
 
@@ -499,6 +505,14 @@ void HUDFix()
                                 ctx.xmm0.f32[0] = (float)2160 * fAspectRatio;
                             }
                         }
+
+                        if (bSpanAllBackgrounds)
+                        {
+                            if (fObjectWidth == (float)3840 && fObjectHeight == (float)2160)
+                            {
+                                ctx.xmm0.f32[0] = (float)2160 * fHUDAspectRatio;
+                            }
+                        }
                     });
             }
             else if (fAspectRatio < fNativeAspect)
@@ -516,6 +530,14 @@ void HUDFix()
                         {
                             // Check if object ID matches anything in the vector
                             if (std::find(BackgroundHeightIDs.begin(), BackgroundHeightIDs.end(), iObjectID) != BackgroundHeightIDs.end())
+                            {
+                                ctx.xmm4.f32[0] = (float)3840 / fAspectRatio;
+                            }
+                        }
+
+                        if (bSpanAllBackgrounds)
+                        {
+                            if (fObjectWidth == (float)3840 && fObjectHeight == (float)2160)
                             {
                                 ctx.xmm4.f32[0] = (float)3840 / fAspectRatio;
                             }
@@ -578,6 +600,24 @@ void HUDFix()
                         else if (fAspectRatio < fNativeAspect)
                         {
                             *reinterpret_cast<float*>(ctx.rax + 0x1D0) = (float)-(((3840 / fHUDAspectRatio) - 2160) / 2);
+                        }
+                    }
+
+                    if (bSpanAllHUD)
+                    {
+                        if (*reinterpret_cast<float*>(ctx.rax + 0x1F4) == (float)3840 && *reinterpret_cast<float*>(ctx.rax + 0x1F8) == (float)2160 && *reinterpret_cast<int*>(ctx.rax + 0x200) != (int)1234)
+                        {
+                            // Span
+                            if (fAspectRatio > fNativeAspect)
+                            {
+                                *reinterpret_cast<float*>(ctx.rax + 0x1F4) = (float)2160 * fHUDAspectRatio;
+                            }
+                            else if (fAspectRatio < fNativeAspect)
+                            {
+                                *reinterpret_cast<float*>(ctx.rax + 0x1F8) = (float)3840 / fHUDAspectRatio;
+                            }
+                            // Write marker
+                            *reinterpret_cast<int*>(ctx.rax + 0x200) = (int)1234;
                         }
                     }
                 });
