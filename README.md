@@ -30,6 +30,7 @@ Please report any issues you see.
 This list will contain bugs which may or may not be fixed.
 
 - Cloth/hair physics are diminished above 30fps. [#2](https://github.com/Lyall/GBFRelinkFix/issues/2)
+- Some effects are display at the wrong aspect ratio. [#35](https://github.com/Lyall/GBFRelinkFix/issues/35)
   
 ## Screenshots
 
