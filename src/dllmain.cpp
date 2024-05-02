@@ -339,16 +339,21 @@ void AspectFOVFix()
     {
         spdlog::info("Gameplay Camera: Address is {:s}+{:x}", sExeName.c_str(), (uintptr_t)GameplayCameraScanResult - (uintptr_t)baseModule);
 
-        static SafetyHookMid GameplayCameraMidHook{};
-        GameplayCameraMidHook = safetyhook::create_mid(GameplayCameraScanResult + 0x8,
+        static SafetyHookMid GameplayCamDistMidHook{};
+        GameplayCamDistMidHook = safetyhook::create_mid(GameplayCameraScanResult - 0xE,
             [](SafetyHookContext& ctx)
             {
                 // Run camera distance multiplier
                 if (fCamDistMulti != (float)1)
                 {
-                    ctx.xmm9.f32[0] *= fCamDistMulti;
+                    ctx.xmm8.f32[0] *= fCamDistMulti;
                 }
+            });
 
+        static SafetyHookMid GameplayCameraMidHook{};
+        GameplayCameraMidHook = safetyhook::create_mid(GameplayCameraScanResult + 0x8,
+            [](SafetyHookContext& ctx)
+            {
                 // Fix gameplay FOV at <16:9
                 if (bFOVFix && (fAspectRatio < fNativeAspect))
                 {
