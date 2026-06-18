@@ -1,3 +1,7 @@
+## ⚠️ This repository has been migrated
+Active development has moved to [Codeberg](https://codeberg.org/Lyall/GBFRelinkFix).  
+This repo is archived and will no longer receive updates.
+
 # Granblue Fantasy: Relink Fix
 [![Patreon-Button](https://github.com/Lyall/FISTFix/assets/695941/19c468ac-52af-4790-b4eb-5187c06af949)](https://www.patreon.com/Wintermance) [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/W7W01UAI9)<br />
 [![Github All Releases](https://img.shields.io/github/downloads/Lyall/GBFRelinkFix/total.svg)](https://github.com/Lyall/GBFRelinkFix/releases)
